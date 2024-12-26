@@ -8,7 +8,7 @@ use crate::list_props::{ListProps, Order, StartAfter};
 pub type Key = String;
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Quickleaf<V>
+pub struct Cache<V>
 where
     V: PartialEq,
 {
@@ -18,7 +18,7 @@ where
     _phantom: std::marker::PhantomData<V>,
 }
 
-impl<V> Quickleaf<V>
+impl<V> Cache<V>
 where
     V: PartialEq,
 {

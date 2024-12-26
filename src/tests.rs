@@ -6,7 +6,7 @@ mod test {
 
     #[test]
     fn test_cache_insert() {
-        let mut cache = Quickleaf::new(2);
+        let mut cache = Cache::new(2);
         cache.insert_str("key1", 1);
         cache.insert_str("key2", 2);
         cache.insert_str("key3", 3);
@@ -17,7 +17,7 @@ mod test {
 
     #[test]
     fn test_cache_remove() {
-        let mut cache = Quickleaf::new(2);
+        let mut cache = Cache::new(2);
         cache.insert_str("key1", 1);
         cache.insert_str("key2", 2);
         cache.remove("key1").expect("Error removing key");
@@ -29,7 +29,7 @@ mod test {
 
     #[test]
     fn test_cache_clear() {
-        let mut cache = Quickleaf::new(2);
+        let mut cache = Cache::new(2);
         cache.insert_str("key1", 1);
         cache.insert_str("key2", 2);
         cache.clear();
@@ -38,7 +38,7 @@ mod test {
 
     #[test]
     fn test_cache_list_asc() {
-        let mut cache = Quickleaf::new(5);
+        let mut cache = Cache::new(5);
         cache.insert_str("key2", 2);
         cache.insert_str("key1", 1);
         cache.insert_str("key5", 5);
@@ -67,7 +67,7 @@ mod test {
 
     #[test]
     fn test_cache_list_asc_with_filter() {
-        let mut cache = Quickleaf::new(10);
+        let mut cache = Cache::new(10);
         cache.insert_str("postmodern", 8);
         cache.insert_str("postpone", 6);
         cache.insert_str("precept", 2);
@@ -100,7 +100,7 @@ mod test {
 
     #[test]
     fn test_cache_list_desc() {
-        let mut cache = Quickleaf::new(5);
+        let mut cache = Cache::new(5);
         cache.insert_str("key5", 5);
         cache.insert_str("key1", 1);
         cache.insert_str("key3", 3);
@@ -128,7 +128,7 @@ mod test {
 
     #[test]
     fn test_cache_list_desc_with_filter() {
-        let mut cache = Quickleaf::new(10);
+        let mut cache = Cache::new(10);
         cache.insert_str("postmodern", 8);
         cache.insert_str("postpone", 6);
         cache.insert_str("precept", 2);
@@ -161,7 +161,7 @@ mod test {
 
     #[test]
     fn test_filter_start_with() {
-        let mut cache = Quickleaf::new(10);
+        let mut cache = Cache::new(10);
 
         cache.insert_str("postmodern", 8);
         cache.insert_str("postpone", 6);
@@ -191,7 +191,7 @@ mod test {
 
     #[test]
     fn test_filter_ends_with() {
-        let mut cache = Quickleaf::new(10);
+        let mut cache = Cache::new(10);
 
         cache.insert_str("postmodern", 8);
         cache.insert_str("postpone", 6);
@@ -220,7 +220,7 @@ mod test {
 
     #[test]
     fn test_filter_start_and_end_with() {
-        let mut cache = Quickleaf::new(10);
+        let mut cache = Cache::new(10);
 
         cache.insert_str("applemorepie", 1);
         cache.insert_str("banana", 2);
