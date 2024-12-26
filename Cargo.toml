@@ -1,0 +1,15 @@
+[package]
+name = "quickleaf"
+version = "0.0.1"
+edition = "2021"
+license = "Apache-2.0"
+authors = ["Philippe Assis <codephilippe@gmail.com>"]
+description = "A simple and efficient in-memory cache with support for filtering, ordering, and limiting results"
+keywords = ["cache", "in-memory", "filter", "order", "limit"]
+documentation = "https://docs.rs/quickleaf"
+categories = ["caching", "data-structures"]
+repository = "https://github.com/lowcarboncode/quickleaf"
+readme = "README.md"
+
+[dependencies]
+valu3 = "0.6.5"
