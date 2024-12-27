@@ -251,6 +251,7 @@ mod test {
 
         let mut clone_cache = cache.clone();
         std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(1));
             clone_cache.insert("key1", 1);
         });
 
