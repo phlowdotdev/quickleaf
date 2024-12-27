@@ -120,6 +120,56 @@ fn main() {
 }
 ```
 
+### Using Events
+
+You can use events to get notified when cache entries are inserted, removed, or cleared. Here is an example:
+
+```rust
+use quickleaf::{Quickleaf, Event};
+use std::sync::mpsc::channel;
+
+fn main() {
+    let (tx, rx) = channel();
+    let mut cache = Quickleaf::with_sender(10, tx);
+
+    cache.insert("key1", 1);
+    cache.insert("key2", 2);
+    cache.insert("key3", 3);
+
+    let mut items = Vec::new();
+
+    for data in rx {
+        items.push(data);
+
+        if items.len() == 3 {
+            break;
+        }
+    }
+
+    assert_eq!(items.len(), 3);
+    assert_eq!(
+        items[0],
+        Event::insert("key1".to_string(), 1)
+    );
+    assert_eq!(
+        items[1],
+        Event::insert("key2".to_string(), 2)
+    );
+    assert_eq!(
+        items[2],
+        Event::insert("key3".to_string(), 3)
+    );
+}
+```
+
+### Event Types
+
+There are three types of events:
+
+1. `Insert`: Triggered when a new entry is inserted into the cache.
+2. `Remove`: Triggered when an entry is removed from the cache.
+3. `Clear`: Triggered when the cache is cleared.
+
 ## Modules
 
 ### `error`
