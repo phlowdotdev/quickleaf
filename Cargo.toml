@@ -12,7 +12,7 @@ repository = "https://github.com/lowcarboncode/quickleaf"
 readme = "README.md"
 
 [dependencies]
-valu3 = "0.6.5"
+valu3 = "0.6"
 
 [features]
 default = []
