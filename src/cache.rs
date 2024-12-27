@@ -17,7 +17,7 @@ pub struct Cache {
     map: HashMap<Key, Value>,
     list: Vec<Key>,
     capacity: usize,
-    sender: Option<Sender<Event<Value>>>,
+    sender: Option<Sender<Event>>,
     _phantom: std::marker::PhantomData<Value>,
 }
 
@@ -38,7 +38,7 @@ impl Cache {
         }
     }
 
-    pub fn with_sender(capacity: usize, sender: Sender<Event<Value>>) -> Self {
+    pub fn with_sender(capacity: usize, sender: Sender<Event>) -> Self {
         Self {
             map: HashMap::new(),
             list: Vec::new(),
@@ -48,7 +48,7 @@ impl Cache {
         }
     }
 
-    pub fn set_event(&mut self, sender: Sender<Event<Value>>) {
+    pub fn set_event(&mut self, sender: Sender<Event>) {
         self.sender = Some(sender);
     }
 

@@ -1,24 +1,26 @@
+use valu3::value::Value;
+
 use crate::cache::Key;
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Event<V> {
-    Insert(EventData<V>),
-    Remove(EventData<V>),
+pub enum Event {
+    Insert(EventData),
+    Remove(EventData),
     Clear,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct EventData<V> {
+pub struct EventData {
     pub key: Key,
-    pub value: V,
+    pub value: Value,
 }
 
-impl<V> Event<V> {
-    pub fn insert(key: Key, value: V) -> Self {
+impl Event {
+    pub fn insert(key: Key, value: Value) -> Self {
         Self::Insert(EventData { key, value })
     }
 
-    pub fn remove(key: Key, value: V) -> Self {
+    pub fn remove(key: Key, value: Value) -> Self {
         Self::Remove(EventData { key, value })
     }
 

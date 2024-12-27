@@ -1,6 +1,6 @@
 [package]
 name = "quickleaf"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 license = "Apache-2.0"
 authors = ["Philippe Assis <codephilippe@gmail.com>"]
@@ -12,7 +12,7 @@ repository = "https://github.com/lowcarboncode/quickleaf"
 readme = "README.md"
 
 [dependencies]
-valu3 = "0.6"
+valu3 = "0.6.6"
 
 [features]
 default = []
