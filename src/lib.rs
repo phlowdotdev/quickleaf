@@ -19,7 +19,6 @@
 //! ```toml
 //! [dependencies]
 //! quickleaf = "0.1"
-//! valu3 = "0.1"
 //! ```
 //!
 //! ## Usage
