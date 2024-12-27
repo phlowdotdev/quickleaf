@@ -14,15 +14,15 @@ pub struct EventData<V> {
 }
 
 impl<V> Event<V> {
-    pub(crate) fn insert(key: Key, value: V) -> Self {
+    pub fn insert(key: Key, value: V) -> Self {
         Self::Insert(EventData { key, value })
     }
 
-    pub(crate) fn remove(key: Key, value: V) -> Self {
+    pub fn remove(key: Key, value: V) -> Self {
         Self::Remove(EventData { key, value })
     }
 
-    pub(crate) fn clear() -> Self {
+    pub fn clear() -> Self {
         Self::Clear
     }
 }

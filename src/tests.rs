@@ -1,7 +1,9 @@
 #[cfg(test)]
 mod test {
-    use crate::*;
-    use list_props::{Order, StartAfter};
+    use valu3::traits::ToValueBehavior;
+
+    use crate::list_props::{Order, StartAfter};
+    use crate::{Cache, Event, EventData, Filter, ListProps};
 
     #[test]
     fn test_cache_insert() {
@@ -10,8 +12,8 @@ mod test {
         cache.insert("key2", 2);
         cache.insert("key3", 3);
         assert_eq!(cache.get("key1"), None);
-        assert_eq!(cache.get("key2"), Some(&2));
-        assert_eq!(cache.get("key3"), Some(&3));
+        assert_eq!(cache.get("key2"), Some(&2.to_value()));
+        assert_eq!(cache.get("key3"), Some(&3.to_value().to_value()));
     }
 
     #[test]
@@ -22,8 +24,8 @@ mod test {
         cache.remove("key1").expect("Error removing key");
         assert_eq!(cache.get("key1"), None);
         cache.insert("key3", 3);
-        assert_eq!(cache.get("key3"), Some(&3));
-        assert_eq!(cache.get("key2"), Some(&2));
+        assert_eq!(cache.get("key3"), Some(&3.to_value().to_value()));
+        assert_eq!(cache.get("key2"), Some(&2.to_value()));
     }
 
     #[test]
@@ -59,9 +61,9 @@ mod test {
         };
 
         assert_eq!(result.len(), 3);
-        assert_eq!(result[0], ("key3".to_string(), &3));
-        assert_eq!(result[1], ("key4".to_string(), &4));
-        assert_eq!(result[2], ("key5".to_string(), &5));
+        assert_eq!(result[0], ("key3".to_string(), &3.to_value()));
+        assert_eq!(result[1], ("key4".to_string(), &4.to_value()));
+        assert_eq!(result[2], ("key5".to_string(), &5.to_value()));
     }
 
     #[test]
@@ -93,8 +95,8 @@ mod test {
         };
 
         assert_eq!(result.len(), 2);
-        assert_eq!(result[0], ("postmortem".to_string(), &9));
-        assert_eq!(result[1], ("postpone".to_string(), &6));
+        assert_eq!(result[0], ("postmortem".to_string(), &9.to_value()));
+        assert_eq!(result[1], ("postpone".to_string(), &6.to_value()));
     }
 
     #[test]
@@ -121,8 +123,8 @@ mod test {
         };
 
         assert_eq!(result.len(), 2);
-        assert_eq!(result[0], ("key2".to_string(), &2));
-        assert_eq!(result[1], ("key1".to_string(), &1));
+        assert_eq!(result[0], ("key2".to_string(), &2.to_value()));
+        assert_eq!(result[1], ("key1".to_string(), &1.to_value()));
     }
 
     #[test]
@@ -154,8 +156,8 @@ mod test {
         };
 
         assert_eq!(result.len(), 2);
-        assert_eq!(result[0], ("postmark".to_string(), &10));
-        assert_eq!(result[1], ("postgraduate".to_string(), &7));
+        assert_eq!(result[0], ("postmark".to_string(), &10.to_value()));
+        assert_eq!(result[1], ("postgraduate".to_string(), &7.to_value()));
     }
 
     #[test]
@@ -183,9 +185,9 @@ mod test {
         };
 
         assert_eq!(result.len(), 3);
-        assert_eq!(result[0], ("postmark".to_string(), &10));
-        assert_eq!(result[1], ("postmodern".to_string(), &8));
-        assert_eq!(result[2], ("postmortem".to_string(), &9));
+        assert_eq!(result[0], ("postmark".to_string(), &10.to_value()));
+        assert_eq!(result[1], ("postmodern".to_string(), &8.to_value()));
+        assert_eq!(result[2], ("postmortem".to_string(), &9.to_value()));
     }
 
     #[test]
@@ -213,8 +215,8 @@ mod test {
         };
 
         assert_eq!(result.len(), 2);
-        assert_eq!(result[0], ("precaution".to_string(), &3));
-        assert_eq!(result[1], ("precognition".to_string(), &5));
+        assert_eq!(result[0], ("precaution".to_string(), &3.to_value()));
+        assert_eq!(result[1], ("precognition".to_string(), &5.to_value()));
     }
 
     #[test]
@@ -239,7 +241,7 @@ mod test {
         };
 
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0], ("applemorepie".to_string(), &1));
+        assert_eq!(result[0], ("applemorepie".to_string(), &1.to_value()));
     }
 
     #[test]
@@ -249,6 +251,7 @@ mod test {
 
         let mut clone_cache = cache.clone();
         std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(1));
             clone_cache.insert("key1", 1);
         });
 
@@ -270,21 +273,21 @@ mod test {
             items[0],
             Event::Insert(EventData {
                 key: "key2".to_string(),
-                value: 2
+                value: 2.to_value()
             })
         );
         assert_eq!(
             items[1],
             Event::Insert(EventData {
                 key: "key3".to_string(),
-                value: 3
+                value: 3.to_value()
             })
         );
         assert_eq!(
             items[2],
             Event::Insert(EventData {
                 key: "key1".to_string(),
-                value: 1
+                value: 1.to_value()
             })
         );
     }
