@@ -13,3 +13,7 @@ readme = "README.md"
 
 [dependencies]
 valu3 = "0.6.5"
+
+[features]
+default = []
+event = []

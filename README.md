@@ -28,9 +28,9 @@ use quickleaf::{Quickleaf, ListProps, Order, Filter};
 
 fn main() {
     let mut cache = Quickleaf::new(2);
-    cache.insert_str("key1", 1);
-    cache.insert_str("key2", 2);
-    cache.insert_str("key3", 3);
+    cache.insert("key1", 1);
+    cache.insert("key2", 2);
+    cache.insert("key3", 3);
 
     assert_eq!(cache.get("key1"), None);
     assert_eq!(cache.get("key2"), Some(&2));
@@ -58,9 +58,9 @@ use quickleaf::{Quickleaf, ListProps, Order, Filter};
 
 fn main() {
     let mut cache = Quickleaf::new(10);
-    cache.insert_str("apple", 1);
-    cache.insert_str("banana", 2);
-    cache.insert_str("apricot", 3);
+    cache.insert("apple", 1);
+    cache.insert("banana", 2);
+    cache.insert("apricot", 3);
 
     let list_props = ListProps::default()
         .order(Order::Asc)
@@ -81,9 +81,9 @@ use quickleaf::{Quickleaf, ListProps, Order, Filter};
 
 fn main() {
     let mut cache = Quickleaf::new(10);
-    cache.insert_str("apple", 1);
-    cache.insert_str("banana", 2);
-    cache.insert_str("pineapple", 3);
+    cache.insert("apple", 1);
+    cache.insert("banana", 2);
+    cache.insert("pineapple", 3);
 
     let list_props = ListProps::default()
         .order(Order::Asc)
@@ -104,9 +104,9 @@ use quickleaf::{Quickleaf, ListProps, Order, Filter};
 
 fn main() {
     let mut cache = Quickleaf::new(10);
-    cache.insert_str("applemorepie", 1);
-    cache.insert_str("banana", 2);
-    cache.insert_str("pineapplepie", 3);
+    cache.insert("applemorepie", 1);
+    cache.insert("banana", 2);
+    cache.insert("pineapplepie", 3);
 
     let list_props = ListProps::default()
         .order(Order::Asc)

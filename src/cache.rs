@@ -1,13 +1,17 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+use valu3::value::Value;
+
 use crate::error::Error;
+use crate::event::Event;
 use crate::filter::Filter;
 use crate::list_props::{ListProps, Order, StartAfter};
+use std::sync::mpsc::Sender;
 
 pub type Key = String;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Cache<V>
 where
     V: PartialEq,
@@ -15,46 +19,98 @@ where
     map: HashMap<Key, V>,
     list: Vec<Key>,
     capacity: usize,
+    sender: Option<Sender<Event<V>>>,
     _phantom: std::marker::PhantomData<V>,
+}
+
+impl PartialEq for Cache<Value> {
+    fn eq(&self, other: &Self) -> bool {
+        self.map == other.map && self.list == other.list && self.capacity == other.capacity
+    }
 }
 
 impl<V> Cache<V>
 where
-    V: PartialEq,
+    V: PartialEq + Clone,
 {
     pub fn new(capacity: usize) -> Self {
         Self {
             map: HashMap::new(),
             list: Vec::new(),
             capacity,
+            sender: None,
             _phantom: std::marker::PhantomData,
         }
     }
 
-    pub fn insert_str(&mut self, key: &'static str, value: V) {
-        self.insert(key.to_string(), value);
+    pub fn with_sender(capacity: usize, sender: Sender<Event<V>>) -> Self {
+        Self {
+            map: HashMap::new(),
+            list: Vec::new(),
+            capacity,
+            sender: Some(sender),
+            _phantom: std::marker::PhantomData,
+        }
     }
 
-    pub fn insert(&mut self, key: Key, value: V) {
+    pub fn set_event(&mut self, sender: Sender<Event<V>>) {
+        self.sender = Some(sender);
+    }
+
+    pub fn remove_event(&mut self) {
+        self.sender = None;
+    }
+
+    fn send_insert(&self, key: Key, value: V) {
+        if let Some(sender) = &self.sender {
+            let event = Event::insert(key, value);
+            sender.send(event).unwrap();
+        }
+    }
+
+    fn send_remove(&self, key: Key, value: V) {
+        if let Some(sender) = &self.sender {
+            let event = Event::remove(key, value);
+            sender.send(event).unwrap();
+        }
+    }
+
+    fn send_clear(&self) {
+        if let Some(sender) = &self.sender {
+            let event = Event::clear();
+            sender.send(event).unwrap();
+        }
+    }
+
+    pub fn insert<T>(&mut self, key: T, value: V)
+    where
+        T: Into<String> + Clone + AsRef<str>,
+    {
+        let key = key.into();
+
         if let Some(value) = self.map.get(&key) {
-            if value.eq(value) {
+            if value.eq(&value) {
                 return;
             }
         }
 
         if self.map.len() != 0 && self.map.len() == self.capacity {
             let first_key = self.list.remove(0);
+            let data = self.map.get(&first_key).unwrap().clone();
             self.map.remove(&first_key);
+            self.send_remove(first_key, data);
         }
 
-        // sorted by key
         let position = self
             .list
             .iter()
             .position(|k| k > &key)
             .unwrap_or(self.list.len());
-        self.list.insert(position, key.to_string());
-        self.map.insert(key, value.into());
+
+        self.list.insert(position, key.clone());
+        self.map.insert(key.clone(), value.clone().into());
+
+        self.send_insert(key, value);
     }
 
     pub fn insert_if_not_exists(&mut self, key: Key, value: V) -> Result<(), Error> {
@@ -63,6 +119,7 @@ where
         }
 
         self.insert(key, value);
+
         Ok(())
     }
 
@@ -86,7 +143,13 @@ where
         match self.list.iter().position(|k| k == &key) {
             Some(position) => {
                 self.list.remove(position);
+
+                let data = self.map.get(key).unwrap().clone();
+
                 self.map.remove(key);
+
+                self.send_remove(key.to_string(), data);
+
                 Ok(())
             }
             None => Err(Error::KeyNotFound),
@@ -96,6 +159,8 @@ where
     pub fn clear(&mut self) {
         self.map.clear();
         self.list.clear();
+
+        self.send_clear();
     }
 
     pub fn len(&self) -> usize {
