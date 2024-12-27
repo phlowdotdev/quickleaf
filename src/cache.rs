@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+use valu3::traits::ToValueBehavior;
 use valu3::value::Value;
 
 use crate::error::Error;
@@ -12,27 +13,21 @@ use std::sync::mpsc::Sender;
 pub type Key = String;
 
 #[derive(Clone, Debug)]
-pub struct Cache<V>
-where
-    V: PartialEq,
-{
-    map: HashMap<Key, V>,
+pub struct Cache {
+    map: HashMap<Key, Value>,
     list: Vec<Key>,
     capacity: usize,
-    sender: Option<Sender<Event<V>>>,
-    _phantom: std::marker::PhantomData<V>,
+    sender: Option<Sender<Event<Value>>>,
+    _phantom: std::marker::PhantomData<Value>,
 }
 
-impl PartialEq for Cache<Value> {
+impl PartialEq for Cache {
     fn eq(&self, other: &Self) -> bool {
         self.map == other.map && self.list == other.list && self.capacity == other.capacity
     }
 }
 
-impl<V> Cache<V>
-where
-    V: PartialEq + Clone,
-{
+impl Cache {
     pub fn new(capacity: usize) -> Self {
         Self {
             map: HashMap::new(),
@@ -43,7 +38,7 @@ where
         }
     }
 
-    pub fn with_sender(capacity: usize, sender: Sender<Event<V>>) -> Self {
+    pub fn with_sender(capacity: usize, sender: Sender<Event<Value>>) -> Self {
         Self {
             map: HashMap::new(),
             list: Vec::new(),
@@ -53,7 +48,7 @@ where
         }
     }
 
-    pub fn set_event(&mut self, sender: Sender<Event<V>>) {
+    pub fn set_event(&mut self, sender: Sender<Event<Value>>) {
         self.sender = Some(sender);
     }
 
@@ -61,14 +56,14 @@ where
         self.sender = None;
     }
 
-    fn send_insert(&self, key: Key, value: V) {
+    fn send_insert(&self, key: Key, value: Value) {
         if let Some(sender) = &self.sender {
             let event = Event::insert(key, value);
             sender.send(event).unwrap();
         }
     }
 
-    fn send_remove(&self, key: Key, value: V) {
+    fn send_remove(&self, key: Key, value: Value) {
         if let Some(sender) = &self.sender {
             let event = Event::remove(key, value);
             sender.send(event).unwrap();
@@ -82,9 +77,10 @@ where
         }
     }
 
-    pub fn insert<T>(&mut self, key: T, value: V)
+    pub fn insert<T, V>(&mut self, key: T, value: V)
     where
         T: Into<String> + Clone + AsRef<str>,
+        V: ToValueBehavior,
     {
         let key = key.into();
 
@@ -108,26 +104,16 @@ where
             .unwrap_or(self.list.len());
 
         self.list.insert(position, key.clone());
-        self.map.insert(key.clone(), value.clone().into());
+        self.map.insert(key.clone(), value.to_value());
 
-        self.send_insert(key, value);
+        self.send_insert(key, value.to_value());
     }
 
-    pub fn insert_if_not_exists(&mut self, key: Key, value: V) -> Result<(), Error> {
-        if self.map.contains_key(&key) {
-            return Err(Error::SortKeyExists);
-        }
-
-        self.insert(key, value);
-
-        Ok(())
-    }
-
-    pub fn get(&self, key: &str) -> Option<&V> {
+    pub fn get(&self, key: &str) -> Option<&Value> {
         self.map.get(key)
     }
 
-    pub fn get_mut(&mut self, key: &str) -> Option<&mut V> {
+    pub fn get_mut(&mut self, key: &str) -> Option<&mut Value> {
         self.map.get_mut(key)
     }
 
@@ -175,7 +161,7 @@ where
         self.map.contains_key(key)
     }
 
-    pub fn list<T>(&self, props: T) -> Result<Vec<(Key, &V)>, Error>
+    pub fn list<T>(&self, props: T) -> Result<Vec<(Key, &Value)>, Error>
     where
         T: Into<ListProps>,
     {
@@ -191,7 +177,7 @@ where
         &self,
         mut list_iter: I,
         props: ListProps,
-    ) -> Result<Vec<(Key, &V)>, Error>
+    ) -> Result<Vec<(Key, &Value)>, Error>
     where
         I: Iterator<Item = &'a Key>,
     {

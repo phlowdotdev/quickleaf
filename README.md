@@ -10,6 +10,7 @@ Quickleaf Cache is a Rust library that provides a simple and efficient in-memory
 - List cache entries with support for filtering, ordering, and limiting results
 - Custom error handling
 - Event notifications for cache operations
+- Support for generic values using [valu3](https://github.com/lowcarboncode/valu3)
 
 ## Installation
 
@@ -18,6 +19,7 @@ Add the following to your `Cargo.toml`:
 ```toml
 [dependencies]
 quickleaf = "0.1"
+valu3 = "0.1"
 ```
 
 ## Usage
@@ -26,6 +28,7 @@ Here's a basic example of how to use Quickleaf Cache:
 
 ```rust
 use quickleaf::{Quickleaf, ListProps, Order, Filter};
+use quickleaf::valu3::value::Value;
 
 fn main() {
     let mut cache = Quickleaf::new(2);
@@ -34,8 +37,8 @@ fn main() {
     cache.insert("key3", 3);
 
     assert_eq!(cache.get("key1"), None);
-    assert_eq!(cache.get("key2"), Some(&2));
-    assert_eq!(cache.get("key3"), Some(&3));
+    assert_eq!(cache.get("key2"), Some(&2.to_value()));
+    assert_eq!(cache.get("key3"), Some(&3.to_value()));
 
     let list_props = ListProps::default()
         .order(Order::Asc)
@@ -128,6 +131,7 @@ You can use events to get notified when cache entries are inserted, removed, or 
 ```rust
 use quickleaf::{Quickleaf, Event};
 use std::sync::mpsc::channel;
+use quickleaf::valu3::value::Value;
 
 fn main() {
     let (tx, rx) = channel();
@@ -150,15 +154,15 @@ fn main() {
     assert_eq!(items.len(), 3);
     assert_eq!(
         items[0],
-        Event::insert("key1".to_string(), 1)
+        Event::insert("key1".to_string(), 1.to_value())
     );
     assert_eq!(
         items[1],
-        Event::insert("key2".to_string(), 2)
+        Event::insert("key2".to_string(), 2.to_value())
     );
     assert_eq!(
         items[2],
-        Event::insert("key3".to_string(), 3)
+        Event::insert("key3".to_string(), 3.to_value())
     );
 }
 ```
