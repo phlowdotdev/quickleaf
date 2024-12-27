@@ -1,6 +1,6 @@
 # Quickleaf Cache
 
-Quickleaf Cache is a Rust library that provides a simple and efficient in-memory cache with support for filtering, ordering, and limiting results. It is designed to be lightweight and easy to use.
+Quickleaf Cache is a Rust library that provides a simple and efficient in-memory cache with support for filtering, ordering, limiting results, and event notifications. It is designed to be lightweight and easy to use.
 
 ## Features
 
@@ -9,6 +9,7 @@ Quickleaf Cache is a Rust library that provides a simple and efficient in-memory
 - Clear the cache
 - List cache entries with support for filtering, ordering, and limiting results
 - Custom error handling
+- Event notifications for cache operations
 
 ## Installation
 
