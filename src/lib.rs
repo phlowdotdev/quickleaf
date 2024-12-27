@@ -18,7 +18,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! quickleaf = "0.1"
+//! quickleaf = "0.2
 //! ```
 //!
 //! ## Usage
