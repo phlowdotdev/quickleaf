@@ -34,12 +34,11 @@
 //!     cache.insert("key3", 3);
 //!
 //!     assert_eq!(cache.get("key1"), None);
-//!     assert_eq!(cache.get("key2"), Some(&2));
-//!     assert_eq!(cache.get("key3"), Some(&3));
+//!     assert_eq!(cache.get("key2"), Some(2));
+//!     assert_eq!(cache.get("key3"), Some(3));
 //!
 //!     let list_props = ListProps::default()
-//!         .order(Order::Asc)
-//!         .limit(10);
+//!         .order(Order::Asc);
 //!
 //!     let result = cache.list(list_props).unwrap();
 //!     for (key, value) in result {
@@ -57,6 +56,7 @@
 //! ```rust
 //! use quickleaf::{Quickleaf, ListProps, Order, Filter};
 //!
+//!
 //! fn main() {
 //!     let mut cache = Quickleaf::new(10);
 //!     cache.insert("apple", 1);
@@ -65,8 +65,7 @@
 //!
 //!     let list_props = ListProps::default()
 //!         .order(Order::Asc)
-//!         .filter(Filter::StartWith("ap"))
-//!         .limit(10);
+//!         .filter(Filter::StartWith("ap"));
 //!
 //!     let result = cache.list(list_props).unwrap();
 //!     for (key, value) in result {
@@ -88,8 +87,7 @@
 //!
 //!     let list_props = ListProps::default()
 //!         .order(Order::Asc)
-//!         .filter(Filter::EndWith("apple"))
-//!         .limit(10);
+//!         .filter(Filter::EndWith("apple"));
 //!
 //!     let result = cache.list(list_props).unwrap();
 //!     for (key, value) in result {
@@ -111,8 +109,7 @@
 //!
 //!     let list_props = ListProps::default()
 //!         .order(Order::Asc)
-//!         .filter(Filter::StartAndEndWith("apple", "pie"))
-//!         .limit(10);
+//!         .filter(Filter::StartAndEndWith("apple", "pie"));
 //!
 //!     let result = cache.list(list_props).unwrap();
 //!     for (key, value) in result {
@@ -128,6 +125,7 @@
 //! ```rust
 //! use quickleaf::{Quickleaf, Event};
 //! use std::sync::mpsc::channel;
+//! use quickleaf::valu3::value::Value;
 //!
 //! fn main() {
 //!     let (tx, rx) = channel();
@@ -150,15 +148,15 @@
 //!     assert_eq!(items.len(), 3);
 //!     assert_eq!(
 //!         items[0],
-//!         Event::insert("key1".to_string(), 1)
+//!         Event::insert("key1".to_string(), Value::Number(1))
 //!     );
 //!     assert_eq!(
 //!         items[1],
-//!         Event::insert("key2".to_string(), 2)
+//!         Event::insert("key2".to_string(), Value::Number(2))
 //!     );
 //!     assert_eq!(
 //!         items[2],
-//!         Event::insert("key3".to_string(), 3)
+//!         Event::insert("key3".to_string(), Value::Number(3))
 //!     );
 //! }
 //! ```

@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test {
-    use crate::*;
-    use list_props::{Order, StartAfter};
+    use crate::list_props::{Order, StartAfter};
+    use crate::{Cache, Event, EventData, Filter, ListProps};
 
     #[test]
     fn test_cache_insert() {
