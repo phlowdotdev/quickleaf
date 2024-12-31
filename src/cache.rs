@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::hash::Hash;
 
 use valu3::traits::ToValueBehavior;
 use valu3::value::Value;
@@ -111,6 +112,14 @@ impl Cache {
 
     pub fn get(&self, key: &str) -> Option<&Value> {
         self.map.get(key)
+    }
+
+    pub fn get_list(&self) -> &Vec<Key> {
+        &self.list
+    }
+
+    pub fn get_map(&self) -> &HashMap<Key, Value> {
+        &self.map
     }
 
     pub fn get_mut(&mut self, key: &str) -> Option<&mut Value> {
