@@ -1,6 +1,6 @@
 //! # Quickleaf Cache
 //!
-//! Quickleaf Cache is a Rust library that provides a simple and efficient in-memory cache with support for filtering, ordering, limiting results, and event notifications. It is designed to be lightweight and easy to use.
+//! Quickleaf Cache is a Rust library that provides a simple and efficient in-memory cache with support for filtering, ordering, limiting results, TTL (Time To Live), and event notifications. It is designed to be lightweight and easy to use.
 //!
 //! ## Features
 //!
@@ -8,6 +8,7 @@
 //! - Retrieve values by key
 //! - Clear the cache
 //! - List cache entries with support for filtering, ordering, and limiting results
+//! - **TTL (Time To Live) support** with lazy cleanup
 //! - Custom error handling
 //! - Event notifications for cache operations
 //! - Support for generic values using [valu3](https://github.com/lowcarboncode/valu3)
@@ -67,7 +68,7 @@
 //!
 //!     let list_props = ListProps::default()
 //!         .order(Order::Asc)
-//!         .filter(Filter::StartWith("ap"));
+//!         .filter(Filter::StartWith("ap".to_string()));
 //!
 //!     let result = cache.list(list_props).unwrap();
 //!     for (key, value) in result {
@@ -89,7 +90,7 @@
 //!
 //!     let list_props = ListProps::default()
 //!         .order(Order::Asc)
-//!         .filter(Filter::EndWith("apple"));
+//!         .filter(Filter::EndWith("apple".to_string()));
 //!
 //!     let result = cache.list(list_props).unwrap();
 //!     for (key, value) in result {
@@ -111,12 +112,35 @@
 //!
 //!     let list_props = ListProps::default()
 //!         .order(Order::Asc)
-//!         .filter(Filter::StartAndEndWith("apple", "pie"));
+//!         .filter(Filter::StartAndEndWith("apple".to_string(), "pie".to_string()));
 //!
 //!     let result = cache.list(list_props).unwrap();
 //!     for (key, value) in result {
 //!         println!("{}: {}", key, value);
 //!     }
+//! }
+//! ```
+//!
+//! ### Using TTL (Time To Live)
+//!
+//! You can set TTL for cache entries to automatically expire them after a certain duration:
+//!
+//! ```rust
+//! use quickleaf::{Quickleaf, Duration};
+//!
+//! fn main() {
+//!     let mut cache = Quickleaf::new(10);
+//!     
+//!     // Insert with specific TTL (5 seconds)
+//!     cache.insert_with_ttl("session", "user_data", Duration::from_secs(5));
+//!     
+//!     // Insert with default TTL
+//!     let mut cache_with_default = Quickleaf::with_default_ttl(10, Duration::from_secs(60));
+//!     cache_with_default.insert("key", "value"); // Will expire in 60 seconds
+//!     
+//!     // Manual cleanup of expired items
+//!     let removed_count = cache.cleanup_expired();
+//!     println!("Removed {} expired items", removed_count);
 //! }
 //! ```
 //!
@@ -180,12 +204,15 @@ pub mod prelude;
 mod quickleaf;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod ttl_tests;
 
-pub use cache::Cache;
+pub use cache::{Cache, CacheItem};
 pub use error::Error;
 pub use event::{Event, EventData};
 pub use filter::Filter;
 pub use list_props::{ListProps, Order, StartAfter};
 pub use quickleaf::Quickleaf;
+pub use std::time::Duration;
 pub use valu3;
 pub use valu3::value::Value;

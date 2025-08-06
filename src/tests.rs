@@ -49,7 +49,7 @@ mod test {
         let result_res = cache.list(ListProps {
             order: Order::Asc,
             filter: Filter::None,
-            start_after_key: StartAfter::Key("key2"),
+            start_after_key: StartAfter::Key("key2".to_string()),
             limit: 10,
         });
 
@@ -82,8 +82,8 @@ mod test {
 
         let result_res = cache.list(ListProps {
             order: Order::Asc,
-            filter: Filter::StartWith("post"),
-            start_after_key: StartAfter::Key("postmodern"),
+            filter: Filter::StartWith("post".to_string()),
+            start_after_key: StartAfter::Key("postmodern".to_string()),
             limit: 10,
         });
 
@@ -111,7 +111,7 @@ mod test {
         let result_res = cache.list(ListProps {
             order: Order::Desc,
             filter: Filter::None,
-            start_after_key: StartAfter::Key("key3"),
+            start_after_key: StartAfter::Key("key3".to_string()),
             limit: 10,
         });
 
@@ -143,7 +143,7 @@ mod test {
 
         let list_props = ListProps::default()
             .order(Order::Desc)
-            .filter(Filter::StartWith("post"))
+            .filter(Filter::StartWith("post".to_string()))
             .start_after_key("postmodern");
 
         let result_res = cache.list(list_props);
@@ -175,7 +175,7 @@ mod test {
         cache.insert("postgraduate", 7);
         cache.insert("preconceive", 4);
 
-        let result_res = cache.list(Filter::StartWith("postm"));
+        let result_res = cache.list(Filter::StartWith("postm".to_string()));
 
         assert_eq!(result_res.is_ok(), true);
 
@@ -205,7 +205,7 @@ mod test {
         cache.insert("postgraduate", 7);
         cache.insert("preconceive", 4);
 
-        let result_res = cache.list(Filter::EndWith("tion"));
+        let result_res = cache.list(Filter::EndWith("tion".to_string()));
 
         assert_eq!(result_res.is_ok(), true);
 
@@ -228,7 +228,10 @@ mod test {
         cache.insert("pineapplepie", 3);
 
         let list_props = ListProps::default()
-            .filter(Filter::StartAndEndWith("apple", "pie"))
+            .filter(Filter::StartAndEndWith(
+                "apple".to_string(),
+                "pie".to_string(),
+            ))
             .order(Order::Asc);
 
         let result_res = cache.list(list_props);
