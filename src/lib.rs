@@ -13,15 +13,6 @@
 //! - Event notifications for cache operations
 //! - Support for generic values using [valu3](https://github.com/lowcarboncode/valu3)
 //!
-//! ## Installation
-//!
-//! Add the following to your `Cargo.toml`:
-//!
-//! ```toml
-//! [dependencies]
-//! quickleaf = "0.2
-//! ```
-//!
 //! ## Usage
 //!
 //! Here's a basic example of how to use Quickleaf Cache:

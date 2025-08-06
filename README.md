@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/quickleaf.svg)](https://crates.io/crates/quickleaf)
 [![License](https://img.shields.io/crates/l/quickleaf.svg)](https://github.com/lowcarboncode/quickleaf/blob/main/LICENSE)
-[![Documentation](https://docs.rs/quickleaf/badge.svg)](https://docs.rs/quickleaf)
+[![Documentation](https://docs.rs/quickleaf/badge.svg)](https://docs.rs/quickleaf/latest/quickleaf/)
 
 Quickleaf Cache is a **fast**, **lightweight**, and **feature-rich** in-memory cache library for Rust. It combines the simplicity of a HashMap with advanced caching features like **TTL (Time To Live)**, **filtering**, **ordering**, and **event notifications**.
 
@@ -461,7 +461,7 @@ This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENS
 
 ## 🔗 Links
 
-- [Documentation](https://docs.rs/quickleaf)
+- [Documentation](https://docs.rs/quickleaf/latest/quickleaf/)
 - [Crates.io](https://crates.io/crates/quickleaf)
 - [Repository](https://github.com/lowcarboncode/quickleaf)
 - [Issues](https://github.com/lowcarboncode/quickleaf/issues)
