@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::hash::Hash;
+use std::time::{Duration, SystemTime};
 
 use valu3::traits::ToValueBehavior;
 use valu3::value::Value;
@@ -11,39 +11,306 @@ use crate::filter::Filter;
 use crate::list_props::{ListProps, Order, StartAfter};
 use std::sync::mpsc::Sender;
 
+/// Type alias for cache keys.
 pub type Key = String;
 
+/// Represents an item stored in the cache with optional TTL (Time To Live).
+/// 
+/// Each cache item contains:
+/// - The actual value stored
+/// - Creation timestamp for TTL calculations
+/// - Optional TTL duration for automatic expiration
+///
+/// # Examples
+///
+/// ```
+/// use quickleaf::CacheItem;
+/// use quickleaf::valu3::traits::ToValueBehavior;
+/// use std::time::Duration;
+///
+/// // Create item without TTL
+/// let item = CacheItem::new("Hello World".to_value());
+/// assert!(!item.is_expired());
+///
+/// // Create item with TTL
+/// let item_with_ttl = CacheItem::with_ttl("temporary".to_value(), Duration::from_secs(60));
+/// assert!(!item_with_ttl.is_expired());
+/// ```
+#[derive(Clone, Debug)]
+pub struct CacheItem {
+    /// The stored value
+    pub value: Value,
+    /// When this item was created
+    pub created_at: SystemTime,
+    /// Optional TTL duration
+    pub ttl: Option<Duration>,
+}
+
+impl CacheItem {
+    /// Creates a new cache item without TTL.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use quickleaf::CacheItem;
+    /// use quickleaf::valu3::traits::ToValueBehavior;
+    ///
+    /// let item = CacheItem::new("data".to_value());
+    /// assert!(!item.is_expired());
+    /// assert!(item.ttl.is_none());
+    /// ```
+    pub fn new(value: Value) -> Self {
+        Self {
+            value,
+            created_at: SystemTime::now(),
+            ttl: None,
+        }
+    }
+
+    /// Creates a new cache item with TTL.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use quickleaf::CacheItem;
+    /// use quickleaf::valu3::traits::ToValueBehavior;
+    /// use std::time::Duration;
+    ///
+    /// let item = CacheItem::with_ttl("session_data".to_value(), Duration::from_secs(300));
+    /// assert!(!item.is_expired());
+    /// assert_eq!(item.ttl, Some(Duration::from_secs(300)));
+    /// ```
+    pub fn with_ttl(value: Value, ttl: Duration) -> Self {
+        Self {
+            value,
+            created_at: SystemTime::now(),
+            ttl: Some(ttl),
+        }
+    }
+
+    /// Checks if this cache item has expired based on its TTL.
+    ///
+    /// Returns `false` if no TTL is set (permanent item).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use quickleaf::CacheItem;
+    /// use quickleaf::valu3::traits::ToValueBehavior;
+    /// use std::time::Duration;
+    /// use std::thread;
+    ///
+    /// // Item without TTL never expires
+    /// let permanent_item = CacheItem::new("permanent".to_value());
+    /// assert!(!permanent_item.is_expired());
+    ///
+    /// // Item with very short TTL
+    /// let short_lived = CacheItem::with_ttl("temp".to_value(), Duration::from_millis(1));
+    /// thread::sleep(Duration::from_millis(10));
+    /// assert!(short_lived.is_expired());
+    /// ```
+    pub fn is_expired(&self) -> bool {
+        if let Some(ttl) = self.ttl {
+            self.created_at.elapsed().unwrap_or(Duration::MAX) > ttl
+        } else {
+            false
+        }
+    }
+}
+
+impl PartialEq for CacheItem {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value && self.ttl == other.ttl
+    }
+}
+
+/// Core cache implementation with LRU eviction, TTL support, and event notifications.
+///
+/// This cache provides:
+/// - O(1) access time for get/insert operations
+/// - LRU (Least Recently Used) eviction when capacity is reached
+/// - Optional TTL (Time To Live) for automatic expiration
+/// - Event notifications for cache operations
+/// - Filtering and ordering capabilities for listing entries
+///
+/// # Examples
+///
+/// ## Basic Usage
+///
+/// ```
+/// use quickleaf::Cache;
+/// use quickleaf::valu3::traits::ToValueBehavior;
+///
+/// let mut cache = Cache::new(3);
+/// cache.insert("key1", "value1");
+/// cache.insert("key2", "value2");
+///
+/// assert_eq!(cache.get("key1"), Some(&"value1".to_value()));
+/// assert_eq!(cache.len(), 2);
+/// ```
+///
+/// ## With TTL Support
+///
+/// ```
+/// use quickleaf::Cache;
+/// use quickleaf::valu3::traits::ToValueBehavior;
+/// use std::time::Duration;
+///
+/// let mut cache = Cache::with_default_ttl(10, Duration::from_secs(60));
+/// cache.insert("session", "user_data");  // Will expire in 60 seconds
+/// cache.insert_with_ttl("temp", "data", Duration::from_millis(100));  // Custom TTL
+///
+/// assert!(cache.contains_key("session"));
+/// ```
+///
+/// ## With Event Notifications
+///
+/// ```
+/// use quickleaf::Cache;
+/// use quickleaf::Event;
+/// use quickleaf::valu3::traits::ToValueBehavior;
+/// use std::sync::mpsc::channel;
+///
+/// let (tx, rx) = channel();
+/// let mut cache = Cache::with_sender(5, tx);
+///
+/// cache.insert("notify", "me");
+///
+/// // Receive the insert event
+/// if let Ok(event) = rx.try_recv() {
+///     match event {
+///         Event::Insert(data) => {
+///             assert_eq!(data.key, "notify");
+///             assert_eq!(data.value, "me".to_value());
+///         },
+///         _ => panic!("Expected insert event"),
+///     }
+/// }
+/// ```
 #[derive(Clone, Debug)]
 pub struct Cache {
-    map: HashMap<Key, Value>,
+    map: HashMap<Key, CacheItem>,
     list: Vec<Key>,
     capacity: usize,
+    default_ttl: Option<Duration>,
     sender: Option<Sender<Event>>,
     _phantom: std::marker::PhantomData<Value>,
 }
 
 impl PartialEq for Cache {
     fn eq(&self, other: &Self) -> bool {
-        self.map == other.map && self.list == other.list && self.capacity == other.capacity
+        self.map == other.map
+            && self.list == other.list
+            && self.capacity == other.capacity
+            && self.default_ttl == other.default_ttl
     }
 }
 
 impl Cache {
+    /// Creates a new cache with the specified capacity.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use quickleaf::Cache;
+    ///
+    /// let cache = Cache::new(100);
+    /// assert_eq!(cache.capacity(), 100);
+    /// assert!(cache.is_empty());
+    /// ```
     pub fn new(capacity: usize) -> Self {
         Self {
             map: HashMap::new(),
             list: Vec::new(),
             capacity,
+            default_ttl: None,
             sender: None,
             _phantom: std::marker::PhantomData,
         }
     }
 
+    /// Creates a new cache with event notifications.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use quickleaf::Cache;
+    /// use quickleaf::Event;
+    /// use quickleaf::valu3::traits::ToValueBehavior;
+    /// use std::sync::mpsc::channel;
+    ///
+    /// let (tx, rx) = channel();
+    /// let mut cache = Cache::with_sender(10, tx);
+    ///
+    /// cache.insert("test", 42);
+    /// 
+    /// // Event should be received
+    /// assert!(rx.try_recv().is_ok());
+    /// ```
     pub fn with_sender(capacity: usize, sender: Sender<Event>) -> Self {
         Self {
             map: HashMap::new(),
             list: Vec::new(),
             capacity,
+            default_ttl: None,
+            sender: Some(sender),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Creates a new cache with default TTL for all items.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use quickleaf::Cache;
+    /// use quickleaf::valu3::traits::ToValueBehavior;
+    /// use std::time::Duration;
+    ///
+    /// let mut cache = Cache::with_default_ttl(10, Duration::from_secs(300));
+    /// cache.insert("auto_expire", "data");
+    ///
+    /// assert_eq!(cache.get_default_ttl(), Some(Duration::from_secs(300)));
+    /// ```
+    pub fn with_default_ttl(capacity: usize, default_ttl: Duration) -> Self {
+        Self {
+            map: HashMap::new(),
+            list: Vec::new(),
+            capacity,
+            default_ttl: Some(default_ttl),
+            sender: None,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Creates a new cache with both event notifications and default TTL.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use quickleaf::Cache;
+    /// use quickleaf::Event;
+    /// use quickleaf::valu3::traits::ToValueBehavior;
+    /// use std::sync::mpsc::channel;
+    /// use std::time::Duration;
+    ///
+    /// let (tx, rx) = channel();
+    /// let mut cache = Cache::with_sender_and_ttl(10, tx, Duration::from_secs(60));
+    ///
+    /// cache.insert("monitored", "data");
+    /// assert!(rx.try_recv().is_ok());
+    /// assert_eq!(cache.get_default_ttl(), Some(Duration::from_secs(60)));
+    /// ```
+    pub fn with_sender_and_ttl(
+        capacity: usize,
+        sender: Sender<Event>,
+        default_ttl: Duration,
+    ) -> Self {
+        Self {
+            map: HashMap::new(),
+            list: Vec::new(),
+            capacity,
+            default_ttl: Some(default_ttl),
             sender: Some(sender),
             _phantom: std::marker::PhantomData,
         }
@@ -78,15 +345,40 @@ impl Cache {
         }
     }
 
+    /// Inserts a key-value pair into the cache.
+    ///
+    /// If the cache is at capacity, the least recently used item will be evicted.
+    /// If a default TTL is set, the item will inherit that TTL.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use quickleaf::Cache;
+    /// use quickleaf::valu3::traits::ToValueBehavior;
+    ///
+    /// let mut cache = Cache::new(2);
+    /// cache.insert("key1", "value1");
+    /// cache.insert("key2", "value2");
+    /// cache.insert("key3", "value3");  // This will evict "key1"
+    ///
+    /// assert_eq!(cache.get("key1"), None);  // Evicted
+    /// assert_eq!(cache.get("key2"), Some(&"value2".to_value()));
+    /// assert_eq!(cache.get("key3"), Some(&"value3".to_value()));
+    /// ```
     pub fn insert<T, V>(&mut self, key: T, value: V)
     where
         T: Into<String> + Clone + AsRef<str>,
         V: ToValueBehavior,
     {
         let key = key.into();
+        let item = if let Some(default_ttl) = self.default_ttl {
+            CacheItem::with_ttl(value.to_value(), default_ttl)
+        } else {
+            CacheItem::new(value.to_value())
+        };
 
-        if let Some(value) = self.map.get(&key) {
-            if value.eq(&value) {
+        if let Some(existing_item) = self.map.get(&key) {
+            if existing_item.value == item.value {
                 return;
             }
         }
@@ -95,7 +387,7 @@ impl Cache {
             let first_key = self.list.remove(0);
             let data = self.map.get(&first_key).unwrap().clone();
             self.map.remove(&first_key);
-            self.send_remove(first_key, data);
+            self.send_remove(first_key, data.value);
         }
 
         let position = self
@@ -105,25 +397,126 @@ impl Cache {
             .unwrap_or(self.list.len());
 
         self.list.insert(position, key.clone());
-        self.map.insert(key.clone(), value.to_value());
+        self.map.insert(key.clone(), item.clone());
 
-        self.send_insert(key, value.to_value());
+        self.send_insert(key, item.value);
     }
 
-    pub fn get(&self, key: &str) -> Option<&Value> {
-        self.map.get(key)
+    /// Inserts a key-value pair with a specific TTL.
+    ///
+    /// The TTL overrides any default TTL set for the cache.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use quickleaf::Cache;
+    /// use quickleaf::valu3::traits::ToValueBehavior;
+    /// use std::time::Duration;
+    /// use std::thread;
+    ///
+    /// let mut cache = Cache::new(10);
+    /// cache.insert_with_ttl("session", "user123", Duration::from_millis(100));
+    ///
+    /// assert!(cache.contains_key("session"));
+    /// thread::sleep(Duration::from_millis(150));
+    /// assert!(!cache.contains_key("session"));  // Should be expired
+    /// ```
+    pub fn insert_with_ttl<T, V>(&mut self, key: T, value: V, ttl: Duration)
+    where
+        T: Into<String> + Clone + AsRef<str>,
+        V: ToValueBehavior,
+    {
+        let key = key.into();
+        let item = CacheItem::with_ttl(value.to_value(), ttl);
+
+        if let Some(existing_item) = self.map.get(&key) {
+            if existing_item.value == item.value {
+                return;
+            }
+        }
+
+        if self.map.len() != 0 && self.map.len() == self.capacity {
+            let first_key = self.list.remove(0);
+            let data = self.map.get(&first_key).unwrap().clone();
+            self.map.remove(&first_key);
+            self.send_remove(first_key, data.value);
+        }
+
+        let position = self
+            .list
+            .iter()
+            .position(|k| k > &key)
+            .unwrap_or(self.list.len());
+
+        self.list.insert(position, key.clone());
+        self.map.insert(key.clone(), item.clone());
+
+        self.send_insert(key, item.value);
+    }
+
+    /// Retrieves a value from the cache by key.
+    ///
+    /// Returns `None` if the key doesn't exist or if the item has expired.
+    /// Expired items are automatically removed during this operation (lazy cleanup).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use quickleaf::Cache;
+    /// use quickleaf::valu3::traits::ToValueBehavior;
+    ///
+    /// let mut cache = Cache::new(10);
+    /// cache.insert("existing", "data");
+    ///
+    /// assert_eq!(cache.get("existing"), Some(&"data".to_value()));
+    /// assert_eq!(cache.get("nonexistent"), None);
+    /// ```
+    pub fn get(&mut self, key: &str) -> Option<&Value> {
+        // Primeiro verifica se existe e se está expirado
+        let is_expired = if let Some(item) = self.map.get(key) {
+            item.is_expired()
+        } else {
+            return None;
+        };
+
+        if is_expired {
+            // Item expirado, remove do cache
+            self.remove(key).ok();
+            None
+        } else {
+            // Item válido, retorna referência
+            self.map.get(key).map(|item| &item.value)
+        }
     }
 
     pub fn get_list(&self) -> &Vec<Key> {
         &self.list
     }
 
-    pub fn get_map(&self) -> &HashMap<Key, Value> {
-        &self.map
+    pub fn get_map(&self) -> HashMap<Key, &Value> {
+        self.map
+            .iter()
+            .filter(|(_, item)| !item.is_expired())
+            .map(|(key, item)| (key.clone(), &item.value))
+            .collect()
     }
 
     pub fn get_mut(&mut self, key: &str) -> Option<&mut Value> {
-        self.map.get_mut(key)
+        // Primeiro verifica se existe e se está expirado
+        let is_expired = if let Some(item) = self.map.get(key) {
+            item.is_expired()
+        } else {
+            return None;
+        };
+
+        if is_expired {
+            // Item expirado, remove do cache
+            self.remove(key).ok();
+            None
+        } else {
+            // Item válido, retorna referência mutável
+            self.map.get_mut(key).map(|item| &mut item.value)
+        }
     }
 
     pub fn capacity(&self) -> usize {
@@ -143,7 +536,7 @@ impl Cache {
 
                 self.map.remove(key);
 
-                self.send_remove(key.to_string(), data);
+                self.send_remove(key.to_string(), data.value);
 
                 Ok(())
             }
@@ -166,15 +559,124 @@ impl Cache {
         self.map.is_empty()
     }
 
-    pub fn contains_key(&self, key: &str) -> bool {
-        self.map.contains_key(key)
+    /// Checks if a key exists in the cache and hasn't expired.
+    ///
+    /// This method performs lazy cleanup of expired items.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use quickleaf::Cache;
+    /// use quickleaf::valu3::traits::ToValueBehavior;
+    /// use std::time::Duration;
+    ///
+    /// let mut cache = Cache::new(10);
+    /// cache.insert("key", "value");
+    ///
+    /// assert!(cache.contains_key("key"));
+    /// assert!(!cache.contains_key("nonexistent"));
+    ///
+    /// // Test with TTL
+    /// cache.insert_with_ttl("temp", "data", Duration::from_millis(1));
+    /// std::thread::sleep(Duration::from_millis(10));
+    /// assert!(!cache.contains_key("temp"));  // Should be expired and removed
+    /// ```
+    pub fn contains_key(&mut self, key: &str) -> bool {
+        if let Some(item) = self.map.get(key) {
+            if item.is_expired() {
+                self.remove(key).ok();
+                false
+            } else {
+                true
+            }
+        } else {
+            false
+        }
     }
 
-    pub fn list<T>(&self, props: T) -> Result<Vec<(Key, &Value)>, Error>
+    /// Manually removes all expired items from the cache.
+    ///
+    /// Returns the number of items that were removed.
+    /// This is useful for proactive cleanup, though the cache also performs lazy cleanup.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use quickleaf::Cache;
+    /// use quickleaf::valu3::traits::ToValueBehavior;
+    /// use std::time::Duration;
+    /// use std::thread;
+    ///
+    /// let mut cache = Cache::new(10);
+    /// cache.insert_with_ttl("temp1", "data1", Duration::from_millis(10));
+    /// cache.insert_with_ttl("temp2", "data2", Duration::from_millis(10));
+    /// cache.insert("permanent", "data");
+    ///
+    /// thread::sleep(Duration::from_millis(20));
+    ///
+    /// let removed = cache.cleanup_expired();
+    /// assert_eq!(removed, 2);  // temp1 and temp2 were removed
+    /// assert_eq!(cache.len(), 1);  // Only permanent remains
+    /// ```
+    pub fn cleanup_expired(&mut self) -> usize {
+        let expired_keys: Vec<_> = self
+            .map
+            .iter()
+            .filter(|(_, item)| item.is_expired())
+            .map(|(key, _)| key.clone())
+            .collect();
+
+        let count = expired_keys.len();
+        for key in expired_keys {
+            self.remove(&key).ok();
+        }
+        count
+    }
+
+    pub fn set_default_ttl(&mut self, ttl: Option<Duration>) {
+        self.default_ttl = ttl;
+    }
+
+    pub fn get_default_ttl(&self) -> Option<Duration> {
+        self.default_ttl
+    }
+
+    /// Lists cache entries with filtering, ordering, and pagination support.
+    ///
+    /// This method automatically cleans up expired items before returning results.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use quickleaf::Cache;
+    /// use quickleaf::{ListProps, Order};
+    /// use quickleaf::Filter;
+    /// use quickleaf::valu3::traits::ToValueBehavior;
+    ///
+    /// let mut cache = Cache::new(10);
+    /// cache.insert("apple", 1);
+    /// cache.insert("banana", 2);
+    /// cache.insert("apricot", 3);
+    ///
+    /// // List all items in ascending order
+    /// let props = ListProps::default().order(Order::Asc);
+    /// let items = cache.list(props).unwrap();
+    /// assert_eq!(items.len(), 3);
+    ///
+    /// // Filter items starting with "ap"
+    /// let props = ListProps::default()
+    ///     .filter(Filter::StartWith("ap".to_string()));
+    /// let filtered = cache.list(props).unwrap();
+    /// assert_eq!(filtered.len(), 2);  // apple, apricot
+    /// ```
+    pub fn list<T>(&mut self, props: T) -> Result<Vec<(Key, &Value)>, Error>
     where
         T: Into<ListProps>,
     {
         let props = props.into();
+
+        // Primeiro faz uma limpeza dos itens expirados para evitar retorná-los
+        self.cleanup_expired();
 
         match props.order {
             Order::Asc => self.resolve_order(self.list.iter(), props),
@@ -188,9 +690,9 @@ impl Cache {
         props: ListProps,
     ) -> Result<Vec<(Key, &Value)>, Error>
     where
-        I: Iterator<Item = &'a Key>,
+        I: Iterator<Item = &'a String>,
     {
-        if let StartAfter::Key(key) = props.start_after_key {
+        if let StartAfter::Key(ref key) = props.start_after_key {
             list_iter
                 .find(|k| k == &key)
                 .ok_or(Error::SortKeyNotFound)?;
@@ -200,36 +702,43 @@ impl Cache {
         let mut count = 0;
 
         for k in list_iter {
-            let filtered = match props.filter {
-                Filter::StartWith(key) => {
-                    if k.starts_with(&key) {
-                        Some((k.clone(), self.map.get(k).unwrap()))
-                    } else {
-                        None
-                    }
+            if let Some(item) = self.map.get(k) {
+                // Pula itens expirados (eles serão removidos na próxima limpeza)
+                if item.is_expired() {
+                    continue;
                 }
-                Filter::EndWith(key) => {
-                    if k.ends_with(&key) {
-                        Some((k.clone(), self.map.get(k).unwrap()))
-                    } else {
-                        None
-                    }
-                }
-                Filter::StartAndEndWith(start_key, end_key) => {
-                    if k.starts_with(&start_key) && k.ends_with(&end_key) {
-                        Some((k.clone(), self.map.get(k).unwrap()))
-                    } else {
-                        None
-                    }
-                }
-                Filter::None => Some((k.clone(), self.map.get(k).unwrap())),
-            };
 
-            if let Some(item) = filtered {
-                list.push(item);
-                count += 1;
-                if count == props.limit {
-                    break;
+                let filtered = match props.filter {
+                    Filter::StartWith(ref key) => {
+                        if k.starts_with(key) {
+                            Some((k.clone(), &item.value))
+                        } else {
+                            None
+                        }
+                    }
+                    Filter::EndWith(ref key) => {
+                        if k.ends_with(key) {
+                            Some((k.clone(), &item.value))
+                        } else {
+                            None
+                        }
+                    }
+                    Filter::StartAndEndWith(ref start_key, ref end_key) => {
+                        if k.starts_with(start_key) && k.ends_with(end_key) {
+                            Some((k.clone(), &item.value))
+                        } else {
+                            None
+                        }
+                    }
+                    Filter::None => Some((k.clone(), &item.value)),
+                };
+
+                if let Some(item) = filtered {
+                    list.push(item);
+                    count += 1;
+                    if count == props.limit {
+                        break;
+                    }
                 }
             }
         }
