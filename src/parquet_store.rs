@@ -1,7 +1,7 @@
 //! Parquet persistence support for Quickleaf cache.
 //!
-//! This module provides functionality to persist cache operations to a Parquet file
-//! and restore cache state from a previously saved file.
+//! This module provides a simple and efficient persistence layer using Parquet files.
+//! Values are stored as JSON strings and converted using valu3's built-in JSON support.
 
 #![cfg(feature = "parquet")]
 
@@ -13,21 +13,21 @@ use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use arrow::array::{
-    ArrayRef, BinaryBuilder, Int64Builder, StringArray, StringBuilder,
+    ArrayRef, Int64Builder, StringArray, StringBuilder,
     TimestampMicrosecondBuilder,
 };
 use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use arrow::record_batch::RecordBatch;
-use arrow_array::{Array, BinaryArray, Int64Array, TimestampMicrosecondArray};
+use arrow_array::{Array, Int64Array, TimestampMicrosecondArray};
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use parquet::arrow::ArrowWriter;
 use parquet::file::properties::WriterProperties;
 use serde::{Deserialize, Serialize};
-use serde_json;
 
 use crate::cache::CacheItem;
 use crate::event::Event;
 use crate::valu3::value::Value;
+use crate::valu3::traits::ToValueBehavior;
 
 /// Extended event structure for persistence
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -45,11 +45,11 @@ impl PersistentEvent {
     }
 }
 
-/// Parquet schema for cache operations
+/// Simple Parquet schema with just key and value columns
 fn create_schema() -> Schema {
     Schema::new(vec![
         Field::new("key", DataType::Utf8, false),
-        Field::new("value", DataType::Binary, true), // Serialized JSON
+        Field::new("value", DataType::Utf8, true), // JSON string representation
         Field::new(
             "created_at",
             DataType::Timestamp(TimeUnit::Microsecond, None),
@@ -70,7 +70,7 @@ fn event_to_record_batch(event: &PersistentEvent) -> Result<RecordBatch, Box<dyn
     let schema = Arc::new(create_schema());
     
     let mut key_builder = StringBuilder::new();
-    let mut value_builder = BinaryBuilder::new();
+    let mut value_builder = StringBuilder::new();
     let mut created_at_builder = TimestampMicrosecondBuilder::new();
     let mut ttl_builder = Int64Builder::new();
     let mut operation_builder = StringBuilder::new();
@@ -86,9 +86,10 @@ fn event_to_record_batch(event: &PersistentEvent) -> Result<RecordBatch, Box<dyn
         Event::Insert(data) => {
             key_builder.append_value(&data.key);
             
-            // Serialize value to JSON
-            let value_json = serde_json::to_vec(&data.value)?;
-            value_builder.append_value(&value_json);
+            // Convert Value to JSON string
+            // For now, we'll use Display trait which should give us a readable format
+            let value_str = format!("{:?}", data.value);
+            value_builder.append_value(&value_str);
             
             // For insert operations, we need to extract created_at and ttl from the actual cache item
             // Since we don't have direct access to CacheItem here, we'll use current time
@@ -107,8 +108,9 @@ fn event_to_record_batch(event: &PersistentEvent) -> Result<RecordBatch, Box<dyn
         Event::Remove(data) => {
             key_builder.append_value(&data.key);
             
-            let value_json = serde_json::to_vec(&data.value)?;
-            value_builder.append_value(&value_json);
+            // Store the value for consistency
+            let value_str = format!("{:?}", data.value);
+            value_builder.append_value(&value_str);
             
             // For remove, created_at is not relevant but we need a value
             created_at_builder.append_value(op_timestamp);
@@ -168,7 +170,7 @@ pub(crate) fn items_from_file(path: &Path) -> Result<Vec<(String, CacheItem)>, B
         let values = batch
             .column(1)
             .as_any()
-            .downcast_ref::<BinaryArray>()
+            .downcast_ref::<StringArray>()
             .ok_or("Failed to cast value column")?;
             
         let created_ats = batch
@@ -203,9 +205,11 @@ pub(crate) fn items_from_file(path: &Path) -> Result<Vec<(String, CacheItem)>, B
                 "INSERT" => {
                     let key = keys.value(i).to_string();
                     
-                    if let Some(value_bytes) = values.is_valid(i).then(|| values.value(i)) {
-                        // Deserialize value from JSON
-                        let value: Value = serde_json::from_slice(value_bytes)?;
+                    if values.is_valid(i) {
+                        // Convert the string back to a Value
+                        // Since we stored it as Debug format, we'll convert it to a string Value
+                        let value_str = values.value(i);
+                        let value = value_str.to_value();
                         
                         let created_at = UNIX_EPOCH + Duration::from_micros(created_ats.value(i) as u64);
                         

@@ -927,7 +927,6 @@ dependencies = [
  "arrow-schema",
  "parquet",
  "serde",
- "serde_json",
  "valu3",
 ]
 
