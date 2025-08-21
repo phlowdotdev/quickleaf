@@ -13,6 +13,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Test 1: Create cache and insert data
     println!("Test 1: Creating cache and inserting data...");
     {
+        use std::{thread, time::Duration};
+
         let mut cache = Cache::with_persist(test_file, 100)?;
         cache.insert("key1", "value1");
         cache.insert("key2", "value2");
@@ -26,6 +28,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Test 2: Load cache from file
     println!("\nTest 2: Loading cache from file...");
     {
+        use std::{thread, time::Duration};
+
         let mut cache = Cache::with_persist(test_file, 100)?;
 
         // Check if data was persisted
