@@ -114,6 +114,7 @@ impl CacheItem {
     /// thread::sleep(Duration::from_millis(10));
     /// assert!(short_lived.is_expired());
     /// ```
+    #[inline(always)]
     pub fn is_expired(&self) -> bool {
         if let Some(ttl) = self.ttl {
             self.created_at.elapsed().unwrap_or(Duration::MAX) > ttl
@@ -227,8 +228,8 @@ impl Cache {
     /// ```
     pub fn new(capacity: usize) -> Self {
         Self {
-            map: HashMap::new(),
-            list: Vec::new(),
+            map: HashMap::with_capacity(capacity),
+            list: Vec::with_capacity(capacity),
             capacity,
             default_ttl: None,
             sender: None,
@@ -258,8 +259,8 @@ impl Cache {
     /// ```
     pub fn with_sender(capacity: usize, sender: Sender<Event>) -> Self {
         Self {
-            map: HashMap::new(),
-            list: Vec::new(),
+            map: HashMap::with_capacity(capacity),
+            list: Vec::with_capacity(capacity),
             capacity,
             default_ttl: None,
             sender: Some(sender),
@@ -285,8 +286,8 @@ impl Cache {
     /// ```
     pub fn with_default_ttl(capacity: usize, default_ttl: Duration) -> Self {
         Self {
-            map: HashMap::new(),
-            list: Vec::new(),
+            map: HashMap::with_capacity(capacity),
+            list: Vec::with_capacity(capacity),
             capacity,
             default_ttl: Some(default_ttl),
             sender: None,
@@ -320,8 +321,8 @@ impl Cache {
         default_ttl: Duration,
     ) -> Self {
         Self {
-            map: HashMap::new(),
-            list: Vec::new(),
+            map: HashMap::with_capacity(capacity),
+            list: Vec::with_capacity(capacity),
             capacity,
             default_ttl: Some(default_ttl),
             sender: Some(sender),
@@ -658,14 +659,17 @@ impl Cache {
         Ok(cache)
     }
 
+    #[inline]
     pub fn set_event(&mut self, sender: Sender<Event>) {
         self.sender = Some(sender);
     }
 
+    #[inline]
     pub fn remove_event(&mut self) {
         self.sender = None;
     }
 
+    #[inline]
     fn send_insert(&self, key: Key, value: Value) {
         if let Some(sender) = &self.sender {
             let event = Event::insert(key, value);
@@ -673,6 +677,7 @@ impl Cache {
         }
     }
 
+    #[inline]
     fn send_remove(&self, key: Key, value: Value) {
         if let Some(sender) = &self.sender {
             let event = Event::remove(key, value);
@@ -680,6 +685,7 @@ impl Cache {
         }
     }
 
+    #[inline]
     fn send_clear(&self) {
         if let Some(sender) = &self.sender {
             let event = Event::clear();
@@ -844,6 +850,7 @@ impl Cache {
         }
     }
 
+    #[inline(always)]
     pub fn get_list(&self) -> &Vec<Key> {
         &self.list
     }
@@ -874,10 +881,12 @@ impl Cache {
         }
     }
 
+    #[inline(always)]
     pub fn capacity(&self) -> usize {
         self.capacity
     }
 
+    #[inline]
     pub fn set_capacity(&mut self, capacity: usize) {
         self.capacity = capacity;
     }
@@ -906,10 +915,12 @@ impl Cache {
         self.send_clear();
     }
 
+    #[inline(always)]
     pub fn len(&self) -> usize {
         self.map.len()
     }
 
+    #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.map.is_empty()
     }
@@ -974,12 +985,14 @@ impl Cache {
     /// assert_eq!(cache.len(), 1);  // Only permanent remains
     /// ```
     pub fn cleanup_expired(&mut self) -> usize {
-        let expired_keys: Vec<_> = self
-            .map
-            .iter()
-            .filter(|(_, item)| item.is_expired())
-            .map(|(key, _)| key.clone())
-            .collect();
+        // Pre-allocate vector with estimated capacity
+        let mut expired_keys = Vec::with_capacity(self.map.len() / 10); // Estimate 10% expired
+        
+        for (key, item) in &self.map {
+            if item.is_expired() {
+                expired_keys.push(key.clone());
+            }
+        }
 
         let count = expired_keys.len();
         for key in expired_keys {
@@ -988,10 +1001,12 @@ impl Cache {
         count
     }
 
+    #[inline]
     pub fn set_default_ttl(&mut self, ttl: Option<Duration>) {
         self.default_ttl = ttl;
     }
 
+    #[inline(always)]
     pub fn get_default_ttl(&self) -> Option<Duration> {
         self.default_ttl
     }

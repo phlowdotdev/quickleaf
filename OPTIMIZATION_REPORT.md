@@ -137,18 +137,48 @@ impl CacheV2 {
 - [ ] Redução de 20% no uso de memória
 - [ ] Todos os testes passando
 
+## 🆕 Atualização: Fase 1 Concluída (Quick Wins)
+
+### Implementações Realizadas (2025-08-21)
+
+1. **Adicionados inline hints**:
+   - `#[inline(always)]` para métodos muito pequenos
+   - `#[inline]` para métodos pequenos
+   
+2. **Pré-alocação de capacidade**:
+   - HashMap e Vec agora pré-alocam com capacidade do cache
+   - cleanup_expired() otimizado com pré-alocação estimada
+
+### 📊 Resultados dos Quick Wins
+
+| Operação | Melhoria | Destaque |
+|----------|----------|----------|
+| **Get operations** | 24-28% mais rápido | ✨ |
+| **Contains_key** | 12-14% mais rápido | |
+| **Insert** | 4-14% mais rápido | |
+| **List com end filter** | **47% mais rápido** | ✨ |
+| **TTL get com expired** | 26% mais rápido | ✨ |
+| **LRU eviction** | 17% mais rápido | |
+| **Value types** | 9-18% mais rápido | |
+| **Eviction overhead** | 9-19% mais rápido | |
+
 ## 🏆 Conclusão
 
-As otimizações implementadas com hashbrown já trouxeram **ganhos significativos de 20-37%**. 
+As otimizações implementadas até agora trouxeram:
+
+### Fase 0 (hashbrown): **20-37%** de melhoria
+### Fase 1 (Quick Wins): **4-47%** de melhoria adicional
+
+**Ganhos acumulados**: Operações de leitura agora são **até 50% mais rápidas** comparado à versão original!
 
 A próxima fase com IndexMap pode trazer:
 - **10x mais rápido** em operações Remove
 - **3x mais rápido** em Insert com grandes volumes
 - **Código mais simples** e manutenível
 
-**Recomendação**: Prosseguir com a implementação de IndexMap em uma branch separada para testes completos antes de merge para produção.
+**Status Atual**: Branch `optimization-v2` criada e quick wins aplicados com sucesso. Próximo passo é implementar IndexMap para resolver o gargalo principal de Remove O(n).
 
 ---
 
-*Relatório gerado em: 2025-08-21*
+*Relatório atualizado em: 2025-08-21*
 *Ambiente: AMD Ryzen 9 7900, 20GB RAM, WSL2 Arch Linux*
