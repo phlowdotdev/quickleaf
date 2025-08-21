@@ -803,19 +803,15 @@ impl Cache {
     /// assert_eq!(cache.get("nonexistent"), None);
     /// ```
     pub fn get(&mut self, key: &str) -> Option<&Value> {
-        // Primeiro verifica se existe e se está expirado
-        let is_expired = if let Some(item) = self.map.get(key) {
-            item.is_expired()
-        } else {
-            return None;
-        };
-
+        // First check if the item exists and is expired
+        let is_expired = self.map.get(key).map_or(false, |item| item.is_expired());
+        
         if is_expired {
-            // Item expirado, remove do cache
+            // Item expired, remove from cache
             self.remove(key).ok();
             None
         } else {
-            // Item válido, retorna referência
+            // Return the value if it exists and is not expired
             self.map.get(key).map(|item| &item.value)
         }
     }
@@ -834,19 +830,13 @@ impl Cache {
     }
 
     pub fn get_mut(&mut self, key: &str) -> Option<&mut Value> {
-        // Primeiro verifica se existe e se está expirado
-        let is_expired = if let Some(item) = self.map.get(key) {
-            item.is_expired()
-        } else {
-            return None;
-        };
-
-        if is_expired {
-            // Item expirado, remove do cache
+        // Check expiration first to decide if we need to remove
+        let should_remove = self.map.get(key).map_or(false, |item| item.is_expired());
+        
+        if should_remove {
             self.remove(key).ok();
             None
         } else {
-            // Item válido, retorna referência mutável
             self.map.get_mut(key).map(|item| &mut item.value)
         }
     }
@@ -909,15 +899,13 @@ impl Cache {
     /// assert!(!cache.contains_key("temp"));  // Should be expired and removed
     /// ```
     pub fn contains_key(&mut self, key: &str) -> bool {
-        if let Some(item) = self.map.get(key) {
-            if item.is_expired() {
+        match self.map.get(key) {
+            Some(item) if item.is_expired() => {
                 self.remove(key).ok();
                 false
-            } else {
-                true
             }
-        } else {
-            false
+            Some(_) => true,
+            None => false,
         }
     }
 
