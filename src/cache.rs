@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use hashbrown::HashMap;
 use std::fmt::Debug;
 use std::time::{Duration, SystemTime};
 
