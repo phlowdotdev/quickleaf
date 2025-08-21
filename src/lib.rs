@@ -293,6 +293,42 @@
 //! # }
 //! ```
 //!
+//! ### Complete Persistence Stack (SQLite + Events + TTL)
+//!
+//! ```rust,no_run
+//! # #[cfg(feature = "persist")]
+//! # {
+//! use quickleaf::Cache;
+//! use std::sync::mpsc::channel;
+//! use std::time::Duration;
+//!
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let (tx, rx) = channel();
+//!     
+//!     // Create cache with all persistence features
+//!     let mut cache = Cache::with_persist_and_sender_and_ttl(
+//!         "full_featured_cache.db",
+//!         1000,
+//!         tx,
+//!         Duration::from_secs(3600)  // 1 hour default TTL
+//!     )?;
+//!     
+//!     // Insert data - it will be persisted, send events, and expire in 1 hour
+//!     cache.insert("session", "user_data");
+//!     
+//!     // Override default TTL for specific items
+//!     cache.insert_with_ttl("temp", "data", Duration::from_secs(60));
+//!     
+//!     // Process events
+//!     for event in rx.try_iter() {
+//!         println!("Event: {:?}", event);
+//!     }
+//!     
+//!     Ok(())
+//! }
+//! # }
+//! ```
+//!
 //! ### Persistence Features
 //!
 //! - **Automatic Persistence**: All cache operations are automatically persisted to SQLite

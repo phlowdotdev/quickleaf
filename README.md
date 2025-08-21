@@ -245,6 +245,45 @@ fn main() {
 
 Quickleaf supports optional persistence using SQLite as a backing store. This provides durability across application restarts while maintaining the same high-performance in-memory operations.
 
+#### Complete Example with All Features
+
+```rust
+use quickleaf::{Cache, Duration};
+use std::sync::mpsc::channel;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let (tx, rx) = channel();
+    
+    // Create cache with ALL features: persistence, events, and TTL
+    let mut cache = Cache::with_persist_and_sender_and_ttl(
+        "full_featured.db",
+        1000,
+        tx,
+        Duration::from_secs(3600)  // 1 hour default TTL
+    )?;
+    
+    // Insert data - it will be:
+    // 1. Persisted to SQLite
+    // 2. Send events to the channel
+    // 3. Expire after 1 hour (default TTL)
+    cache.insert("session:user123", "active");
+    
+    // Override default TTL for specific items
+    cache.insert_with_ttl(
+        "temp:token",
+        "xyz789",
+        Duration::from_secs(60)  // 1 minute instead of 1 hour
+    );
+    
+    // Process events
+    for event in rx.try_iter() {
+        println!("Event received: {:?}", event);
+    }
+    
+    Ok(())
+}
+```
+
 #### Basic Persistent Cache
 
 ```rust
@@ -325,6 +364,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 | `with_persist(path, capacity)` | Basic persistent cache | Simple persistence without events |
 | `with_persist_and_ttl(path, capacity, ttl)` | Persistent cache with default TTL | Session stores, temporary data with persistence |
 | `with_persist_and_sender(path, capacity, sender)` | Persistent cache with events | Monitoring, logging, real-time updates |
+| `with_persist_and_sender_and_ttl(path, capacity, sender, ttl)` | Full-featured persistent cache | Complete solution with all features |
 
 ### 🔔 Event Notifications
 
@@ -457,6 +497,9 @@ let cache = Cache::with_persist_and_ttl("cache.db", capacity, ttl)?;
 
 // With persistence and events
 let cache = Cache::with_persist_and_sender("cache.db", capacity, sender)?;
+
+// With persistence, events, and TTL (all features)
+let cache = Cache::with_persist_and_sender_and_ttl("cache.db", capacity, sender, ttl)?;
 ```
 
 ### Core Operations
