@@ -2,3 +2,5 @@ target
 .vscode
 *.db
 *.db-*
+*tmp
+*.tmp.rs

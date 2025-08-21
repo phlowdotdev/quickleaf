@@ -1,7 +1,7 @@
 //! SQLite persistence support for Quickleaf cache.
 //!
-//! This module provides a simple and efficient persistence layer using SQLite.
-//! Much simpler and more efficient than Parquet for cache operations.
+//! This module provides a simple and efficient persistence layer using SQLite
+//! for durable cache storage.
 
 #![cfg(feature = "persist")]
 
@@ -68,6 +68,10 @@ pub(crate) fn items_from_db(path: &Path) -> Result<Vec<(String, CacheItem)>, Box
     let conn = Connection::open(path)?;
     init_database(&conn)?;
     
+    // Try WAL mode, fallback to DELETE if not supported
+    let _ = conn.execute_batch("PRAGMA journal_mode = DELETE;");
+    let _ = conn.execute_batch("PRAGMA busy_timeout = 5000;");
+    
     // Clean up expired items first
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)?
@@ -121,6 +125,10 @@ pub(crate) fn ensure_db_file(path: &Path) -> Result<(), Box<dyn std::error::Erro
     let conn = Connection::open(path)?;
     init_database(&conn)?;
     
+    // Use DELETE mode for compatibility
+    let _ = conn.execute_batch("PRAGMA journal_mode = DELETE;");
+    let _ = conn.execute_batch("PRAGMA busy_timeout = 5000;");
+    
     Ok(())
 }
 
@@ -136,13 +144,22 @@ impl SqliteWriter {
         let conn = Connection::open(&path)?;
         init_database(&conn)?;
         
-        // Set pragmas for performance
-        conn.execute_batch(
-            "PRAGMA journal_mode = WAL;
-             PRAGMA synchronous = NORMAL;
+        // Try WAL mode first, but fallback to DELETE if not supported (WSL/network FS)
+        match conn.execute_batch("PRAGMA journal_mode = WAL;") {
+            Ok(_) => {},
+            Err(_) => {
+                // Fallback to DELETE mode for filesystems that don't support WAL
+                let _ = conn.execute_batch("PRAGMA journal_mode = DELETE;");
+            }
+        }
+        
+        // Set other pragmas for performance
+        let _ = conn.execute_batch(
+            "PRAGMA synchronous = NORMAL;
              PRAGMA cache_size = 10000;
-             PRAGMA temp_store = MEMORY;"
-        )?;
+             PRAGMA temp_store = MEMORY;
+             PRAGMA busy_timeout = 5000;"
+        );
         
         Ok(Self {
             path,

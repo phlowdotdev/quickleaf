@@ -105,7 +105,12 @@ struct App {
 #[cfg(feature = "tui-example")]
 impl App {
     fn new() -> Result<Self, Box<dyn std::error::Error>> {
-        let cache = Cache::with_persist("tui_cache.db", 1000)?;
+        // Use env var or default to /tmp for better compatibility
+        let db_path = std::env::var("QUICKLEAF_DB_PATH")
+            .unwrap_or_else(|_| "/tmp/quickleaf_tui_cache.db".to_string());
+        
+        println!("Using cache database at: {}", db_path);
+        let cache = Cache::with_persist(&db_path, 1000)?;
         Ok(Self {
             cache,
             selected_menu: 0,
@@ -310,15 +315,23 @@ impl App {
 
 #[cfg(feature = "tui-example")]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create app first (before terminal setup) to ensure DB is accessible
+    let mut app = match App::new() {
+        Ok(app) => app,
+        Err(e) => {
+            eprintln!("Failed to initialize application: {}", e);
+            eprintln!("Make sure the database path is writable.");
+            eprintln!("You can set QUICKLEAF_DB_PATH environment variable to use a different path.");
+            return Err(e);
+        }
+    };
+    
     // Setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
-    
-    // Create app
-    let mut app = App::new()?;
     
     // Main loop
     let res = run_app(&mut terminal, &mut app);

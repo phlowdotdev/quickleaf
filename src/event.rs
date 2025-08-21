@@ -7,9 +7,6 @@ use valu3::value::Value;
 
 use crate::cache::Key;
 
-#[cfg(feature = "parquet")]
-use serde::{Deserialize, Serialize};
-
 /// Represents different types of cache events.
 ///
 /// Events are sent through a channel when cache operations occur, allowing
@@ -46,7 +43,6 @@ use serde::{Deserialize, Serialize};
 /// }
 /// ```
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "parquet", derive(Serialize, Deserialize))]
 pub enum Event {
     /// An item was inserted into the cache.
     ///
@@ -66,7 +62,7 @@ pub enum Event {
     /// }
     /// ```
     Insert(EventData),
-    
+
     /// An item was removed from the cache.
     ///
     /// # Examples
@@ -85,7 +81,7 @@ pub enum Event {
     /// }
     /// ```
     Remove(EventData),
-    
+
     /// The entire cache was cleared.
     ///
     /// # Examples
@@ -121,7 +117,6 @@ pub enum Event {
 /// assert_eq!(event_data.value, "abc123".to_value());
 /// ```
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "parquet", derive(Serialize, Deserialize))]
 pub struct EventData {
     /// The key associated with the event.
     pub key: Key,
@@ -139,7 +134,7 @@ impl Event {
     /// use quickleaf::valu3::traits::ToValueBehavior;
     ///
     /// let event = Event::insert("user_session".to_string(), "active".to_value());
-    /// 
+    ///
     /// match event {
     ///     Event::Insert(data) => {
     ///         assert_eq!(data.key, "user_session");
@@ -161,7 +156,7 @@ impl Event {
     /// use quickleaf::valu3::traits::ToValueBehavior;
     ///
     /// let event = Event::remove("expired_key".to_string(), "old_data".to_value());
-    /// 
+    ///
     /// match event {
     ///     Event::Remove(data) => {
     ///         assert_eq!(data.key, "expired_key");
@@ -182,7 +177,7 @@ impl Event {
     /// use quickleaf::Event;
     ///
     /// let event = Event::clear();
-    /// 
+    ///
     /// match event {
     ///     Event::Clear => println!("Cache was cleared"),
     ///     _ => panic!("Expected clear event"),
