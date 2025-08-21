@@ -11,6 +11,11 @@ use crate::filter::Filter;
 use crate::list_props::{ListProps, Order, StartAfter};
 use std::sync::mpsc::Sender;
 
+#[cfg(feature = "parquet")]
+use std::path::Path;
+#[cfg(feature = "parquet")]
+use std::sync::mpsc::channel;
+
 /// Type alias for cache keys.
 pub type Key = String;
 
@@ -314,6 +319,145 @@ impl Cache {
             sender: Some(sender),
             _phantom: std::marker::PhantomData,
         }
+    }
+
+    /// Creates a new cache with Parquet persistence.
+    ///
+    /// This constructor enables automatic persistence of all cache operations to a Parquet file.
+    /// On initialization, it will load any existing data from the Parquet file.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # #[cfg(feature = "parquet")]
+    /// # {
+    /// use quickleaf::Cache;
+    /// 
+    /// let mut cache = Cache::with_parquet("data/cache.parquet", 1000).unwrap();
+    /// cache.insert("persistent_key", "persistent_value");
+    /// # }
+    /// ```
+    #[cfg(feature = "parquet")]
+    pub fn with_parquet<P: AsRef<Path>>(
+        path: P,
+        capacity: usize,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        use crate::parquet_store::{ensure_parquet_file, items_from_file, spawn_writer, PersistentEvent};
+        
+        let path = path.as_ref().to_path_buf();
+        
+        // Ensure the Parquet file and directories exist
+        ensure_parquet_file(&path)?;
+        
+        // Create channels for event handling
+        let (event_tx, event_rx) = channel();
+        let (persist_tx, persist_rx) = channel();
+        
+        // Spawn the Parquet writer thread
+        spawn_writer(path.clone(), persist_rx);
+        
+        // Create the cache with event sender
+        let mut cache = Self::with_sender(capacity, event_tx);
+        
+        // Set up event forwarding to Parquet writer
+        std::thread::spawn(move || {
+            while let Ok(event) = event_rx.recv() {
+                let persistent_event = PersistentEvent::new(event.clone());
+                if persist_tx.send(persistent_event).is_err() {
+                    break;
+                }
+                // Forward original event if there are other listeners
+                // This is handled by the cache's internal sender
+            }
+        });
+        
+        // Load existing data from Parquet file
+        let items = items_from_file(&path)?;
+        for (key, item) in items {
+            // Directly insert into the map and list to avoid triggering events
+            if cache.map.len() < capacity {
+                let position = cache
+                    .list
+                    .iter()
+                    .position(|k| k > &key)
+                    .unwrap_or(cache.list.len());
+                cache.list.insert(position, key.clone());
+                cache.map.insert(key, item);
+            }
+        }
+        
+        Ok(cache)
+    }
+
+    /// Creates a new cache with Parquet persistence and default TTL.
+    ///
+    /// This constructor combines Parquet persistence with a default TTL for all cache items.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # #[cfg(feature = "parquet")]
+    /// # {
+    /// use quickleaf::Cache;
+    /// use std::time::Duration;
+    /// 
+    /// let mut cache = Cache::with_parquet_and_ttl(
+    ///     "data/cache.parquet",
+    ///     1000,
+    ///     Duration::from_secs(3600)
+    /// ).unwrap();
+    /// cache.insert("session", "data");  // Will expire in 1 hour
+    /// # }
+    /// ```
+    #[cfg(feature = "parquet")]
+    pub fn with_parquet_and_ttl<P: AsRef<Path>>(
+        path: P,
+        capacity: usize,
+        default_ttl: Duration,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        use crate::parquet_store::{ensure_parquet_file, items_from_file, spawn_writer, PersistentEvent};
+        
+        let path = path.as_ref().to_path_buf();
+        
+        // Ensure the Parquet file and directories exist
+        ensure_parquet_file(&path)?;
+        
+        // Create channels for event handling
+        let (event_tx, event_rx) = channel();
+        let (persist_tx, persist_rx) = channel();
+        
+        // Spawn the Parquet writer thread
+        spawn_writer(path.clone(), persist_rx);
+        
+        // Create the cache with event sender and TTL
+        let mut cache = Self::with_sender_and_ttl(capacity, event_tx, default_ttl);
+        
+        // Set up event forwarding to Parquet writer
+        std::thread::spawn(move || {
+            while let Ok(event) = event_rx.recv() {
+                let persistent_event = PersistentEvent::new(event.clone());
+                if persist_tx.send(persistent_event).is_err() {
+                    break;
+                }
+            }
+        });
+        
+        // Load existing data from Parquet file
+        let items = items_from_file(&path)?;
+        for (key, item) in items {
+            // Skip expired items during load
+            if !item.is_expired() && cache.map.len() < capacity {
+                let position = cache
+                    .list
+                    .iter()
+                    .position(|k| k > &key)
+                    .unwrap_or(cache.list.len());
+                cache.list.insert(position, key.clone());
+                cache.map.insert(key, item);
+            }
+        }
+        
+        Ok(cache)
     }
 
     pub fn set_event(&mut self, sender: Sender<Event>) {

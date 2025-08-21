@@ -7,6 +7,9 @@ use valu3::value::Value;
 
 use crate::cache::Key;
 
+#[cfg(feature = "parquet")]
+use serde::{Deserialize, Serialize};
+
 /// Represents different types of cache events.
 ///
 /// Events are sent through a channel when cache operations occur, allowing
@@ -43,6 +46,7 @@ use crate::cache::Key;
 /// }
 /// ```
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "parquet", derive(Serialize, Deserialize))]
 pub enum Event {
     /// An item was inserted into the cache.
     ///
@@ -117,6 +121,7 @@ pub enum Event {
 /// assert_eq!(event_data.value, "abc123".to_value());
 /// ```
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "parquet", derive(Serialize, Deserialize))]
 pub struct EventData {
     /// The key associated with the event.
     pub key: Key,
