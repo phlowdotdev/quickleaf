@@ -1,4 +1,4 @@
-use hashbrown::HashMap;
+use indexmap::IndexMap;
 use std::fmt::Debug;
 use std::time::{Duration, SystemTime};
 
@@ -195,8 +195,7 @@ impl PartialEq for CacheItem {
 /// ```
 #[derive(Clone, Debug)]
 pub struct Cache {
-    map: HashMap<Key, CacheItem>,
-    list: Vec<Key>,
+    map: IndexMap<Key, CacheItem>,
     capacity: usize,
     default_ttl: Option<Duration>,
     sender: Option<Sender<Event>>,
@@ -208,7 +207,6 @@ pub struct Cache {
 impl PartialEq for Cache {
     fn eq(&self, other: &Self) -> bool {
         self.map == other.map
-            && self.list == other.list
             && self.capacity == other.capacity
             && self.default_ttl == other.default_ttl
     }
@@ -228,8 +226,7 @@ impl Cache {
     /// ```
     pub fn new(capacity: usize) -> Self {
         Self {
-            map: HashMap::with_capacity(capacity),
-            list: Vec::with_capacity(capacity),
+            map: IndexMap::with_capacity(capacity),
             capacity,
             default_ttl: None,
             sender: None,
@@ -259,8 +256,7 @@ impl Cache {
     /// ```
     pub fn with_sender(capacity: usize, sender: Sender<Event>) -> Self {
         Self {
-            map: HashMap::with_capacity(capacity),
-            list: Vec::with_capacity(capacity),
+            map: IndexMap::with_capacity(capacity),
             capacity,
             default_ttl: None,
             sender: Some(sender),
@@ -286,8 +282,7 @@ impl Cache {
     /// ```
     pub fn with_default_ttl(capacity: usize, default_ttl: Duration) -> Self {
         Self {
-            map: HashMap::with_capacity(capacity),
-            list: Vec::with_capacity(capacity),
+            map: IndexMap::with_capacity(capacity),
             capacity,
             default_ttl: Some(default_ttl),
             sender: None,
@@ -321,8 +316,7 @@ impl Cache {
         default_ttl: Duration,
     ) -> Self {
         Self {
-            map: HashMap::with_capacity(capacity),
-            list: Vec::with_capacity(capacity),
+            map: IndexMap::with_capacity(capacity),
             capacity,
             default_ttl: Some(default_ttl),
             sender: Some(sender),
@@ -382,16 +376,13 @@ impl Cache {
         });
         
         // Load existing data from database
-        let items = items_from_db(&path)?;
+        let mut items = items_from_db(&path)?;
+        // Sort items by key to maintain alphabetical order
+        items.sort_by(|a, b| a.0.cmp(&b.0));
+        
         for (key, item) in items {
-            // Directly insert into the map and list to avoid triggering events
+            // Directly insert into the map to avoid triggering events
             if cache.map.len() < capacity {
-                let position = cache
-                    .list
-                    .iter()
-                    .position(|k| k > &key)
-                    .unwrap_or(cache.list.len());
-                cache.list.insert(position, key.clone());
                 cache.map.insert(key, item);
             }
         }
@@ -468,16 +459,13 @@ impl Cache {
         });
         
         // Load existing data from database
-        let items = items_from_db(&path)?;
+        let mut items = items_from_db(&path)?;
+        // Sort items by key to maintain alphabetical order
+        items.sort_by(|a, b| a.0.cmp(&b.0));
+        
         for (key, item) in items {
-            // Directly insert into the map and list to avoid triggering events
+            // Directly insert into the map to avoid triggering events
             if cache.map.len() < capacity {
-                let position = cache
-                    .list
-                    .iter()
-                    .position(|k| k > &key)
-                    .unwrap_or(cache.list.len());
-                cache.list.insert(position, key.clone());
                 cache.map.insert(key, item);
             }
         }
@@ -547,16 +535,13 @@ impl Cache {
         });
         
         // Load existing data from database
-        let items = items_from_db(&path)?;
+        let mut items = items_from_db(&path)?;
+        // Sort items by key to maintain alphabetical order
+        items.sort_by(|a, b| a.0.cmp(&b.0));
+        
         for (key, item) in items {
             // Skip expired items during load
             if !item.is_expired() && cache.map.len() < capacity {
-                let position = cache
-                    .list
-                    .iter()
-                    .position(|k| k > &key)
-                    .unwrap_or(cache.list.len());
-                cache.list.insert(position, key.clone());
                 cache.map.insert(key, item);
             }
         }
@@ -642,16 +627,13 @@ impl Cache {
         });
         
         // Load existing data from database
-        let items = items_from_db(&path)?;
+        let mut items = items_from_db(&path)?;
+        // Sort items by key to maintain alphabetical order
+        items.sort_by(|a, b| a.0.cmp(&b.0));
+        
         for (key, item) in items {
             // Skip expired items during load
             if !item.is_expired() && cache.map.len() < capacity {
-                let position = cache
-                    .list
-                    .iter()
-                    .position(|k| k > &key)
-                    .unwrap_or(cache.list.len());
-                cache.list.insert(position, key.clone());
                 cache.map.insert(key, item);
             }
         }
@@ -731,20 +713,14 @@ impl Cache {
             }
         }
 
-        if self.map.len() != 0 && self.map.len() == self.capacity {
-            let first_key = self.list.remove(0);
-            let data = self.map.get(&first_key).unwrap().clone();
-            self.map.remove(&first_key);
-            self.send_remove(first_key, data.value);
+        // If at capacity, remove the first item (LRU)
+        if self.map.len() >= self.capacity && !self.map.contains_key(&key) {
+            if let Some((first_key, first_item)) = self.map.shift_remove_index(0) {
+                self.send_remove(first_key, first_item.value);
+            }
         }
 
-        let position = self
-            .list
-            .iter()
-            .position(|k| k > &key)
-            .unwrap_or(self.list.len());
-
-        self.list.insert(position, key.clone());
+        // Insert the new item
         self.map.insert(key.clone(), item.clone());
 
         self.send_insert(key, item.value);
@@ -783,20 +759,14 @@ impl Cache {
             }
         }
 
-        if self.map.len() != 0 && self.map.len() == self.capacity {
-            let first_key = self.list.remove(0);
-            let data = self.map.get(&first_key).unwrap().clone();
-            self.map.remove(&first_key);
-            self.send_remove(first_key, data.value);
+        // If at capacity, remove the first item (LRU)
+        if self.map.len() >= self.capacity && !self.map.contains_key(&key) {
+            if let Some((first_key, first_item)) = self.map.shift_remove_index(0) {
+                self.send_remove(first_key, first_item.value);
+            }
         }
 
-        let position = self
-            .list
-            .iter()
-            .position(|k| k > &key)
-            .unwrap_or(self.list.len());
-
-        self.list.insert(position, key.clone());
+        // Insert the new item
         self.map.insert(key.clone(), item.clone());
 
         self.send_insert(key.clone(), item.value.clone());
@@ -851,11 +821,11 @@ impl Cache {
     }
 
     #[inline(always)]
-    pub fn get_list(&self) -> &Vec<Key> {
-        &self.list
+    pub fn get_list(&self) -> Vec<&Key> {
+        self.map.keys().collect()
     }
 
-    pub fn get_map(&self) -> HashMap<Key, &Value> {
+    pub fn get_map(&self) -> IndexMap<Key, &Value> {
         self.map
             .iter()
             .filter(|(_, item)| !item.is_expired())
@@ -892,26 +862,17 @@ impl Cache {
     }
 
     pub fn remove(&mut self, key: &str) -> Result<(), Error> {
-        match self.list.iter().position(|k| k == &key) {
-            Some(position) => {
-                self.list.remove(position);
-
-                let data = self.map.get(key).unwrap().clone();
-
-                self.map.remove(key);
-
-                self.send_remove(key.to_string(), data.value);
-
-                Ok(())
-            }
-            None => Err(Error::KeyNotFound),
+        // Use swap_remove for O(1) removal
+        if let Some(item) = self.map.swap_remove(key) {
+            self.send_remove(key.to_string(), item.value);
+            Ok(())
+        } else {
+            Err(Error::KeyNotFound)
         }
     }
 
     pub fn clear(&mut self) {
         self.map.clear();
-        self.list.clear();
-
         self.send_clear();
     }
 
@@ -1048,9 +1009,13 @@ impl Cache {
         // Primeiro faz uma limpeza dos itens expirados para evitar retorná-los
         self.cleanup_expired();
 
+        // Get keys and sort them alphabetically for ordered listing
+        let mut keys: Vec<String> = self.map.keys().cloned().collect();
+        keys.sort();
+        
         match props.order {
-            Order::Asc => self.resolve_order(self.list.iter(), props),
-            Order::Desc => self.resolve_order(self.list.iter().rev(), props),
+            Order::Asc => self.resolve_order(keys.iter(), props),
+            Order::Desc => self.resolve_order(keys.iter().rev(), props),
         }
     }
 
