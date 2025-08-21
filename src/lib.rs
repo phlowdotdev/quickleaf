@@ -200,8 +200,8 @@ mod error;
 mod event;
 mod filter;
 mod list_props;
-#[cfg(feature = "parquet")]
-mod parquet_store;
+#[cfg(feature = "persist")]
+mod sqlite_store;
 pub mod prelude;
 mod quickleaf;
 #[cfg(test)]
