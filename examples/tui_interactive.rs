@@ -1,9 +1,9 @@
 //! Interactive Terminal UI example for Quickleaf with SQLite persistence
-//! 
+//!
 //! Run with: cargo run --example tui_interactive --features tui-example
 
 #[cfg(feature = "tui-example")]
-use quickleaf::{Cache, ListProps, Order, Filter};
+use quickleaf::{Cache, Filter, ListProps, Order};
 #[cfg(feature = "tui-example")]
 use std::time::Duration;
 
@@ -12,7 +12,7 @@ use ratatui::{
     backend::{Backend, CrosstermBackend},
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Clear},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame, Terminal,
 };
 
@@ -57,7 +57,7 @@ impl MenuItem {
             MenuItem::Exit,
         ]
     }
-    
+
     fn name(&self) -> &str {
         match self {
             MenuItem::Insert => "📝 Insert Key-Value",
@@ -72,7 +72,7 @@ impl MenuItem {
             MenuItem::Exit => "🚪 Exit",
         }
     }
-    
+
     fn description(&self) -> &str {
         match self {
             MenuItem::Insert => "Insert a new key-value pair into the cache",
@@ -107,8 +107,8 @@ impl App {
     fn new() -> Result<Self, Box<dyn std::error::Error>> {
         // Use env var or default to /tmp for better compatibility
         let db_path = std::env::var("QUICKLEAF_DB_PATH")
-            .unwrap_or_else(|_| "/tmp/quickleaf_tui_cache.db".to_string());
-        
+            .unwrap_or_else(|_| "./quickleaf_tui_cache.db".to_string());
+
         println!("Using cache database at: {}", db_path);
         let cache = Cache::with_persist(&db_path, 1000)?;
         Ok(Self {
@@ -123,7 +123,7 @@ impl App {
             input_stage: 0,
         })
     }
-    
+
     fn add_message(&mut self, msg: String) {
         self.messages.push(msg);
         // Keep only last 10 messages
@@ -131,7 +131,7 @@ impl App {
             self.messages.remove(0);
         }
     }
-    
+
     fn execute_action(&mut self) {
         match self.current_action.as_ref() {
             Some(MenuItem::Insert) => {
@@ -146,30 +146,35 @@ impl App {
                     self.reset_input();
                 }
             }
-            Some(MenuItem::InsertWithTTL) => {
-                match self.input_stage {
-                    0 => {
-                        self.input_stage = 1;
-                        self.add_message("Enter value:".to_string());
-                    }
-                    1 => {
-                        self.input_stage = 2;
-                        self.add_message("Enter TTL in seconds:".to_string());
-                    }
-                    2 => {
-                        let key = self.input_buffer.clone();
-                        let value = self.second_input_buffer.clone();
-                        if let Ok(ttl_secs) = self.third_input_buffer.parse::<u64>() {
-                            self.cache.insert_with_ttl(&key, value.as_str(), Duration::from_secs(ttl_secs));
-                            self.add_message(format!("✅ Inserted with TTL: {} = {} ({}s)", key, value, ttl_secs));
-                        } else {
-                            self.add_message("❌ Invalid TTL value".to_string());
-                        }
-                        self.reset_input();
-                    }
-                    _ => {}
+            Some(MenuItem::InsertWithTTL) => match self.input_stage {
+                0 => {
+                    self.input_stage = 1;
+                    self.add_message("Enter value:".to_string());
                 }
-            }
+                1 => {
+                    self.input_stage = 2;
+                    self.add_message("Enter TTL in seconds:".to_string());
+                }
+                2 => {
+                    let key = self.input_buffer.clone();
+                    let value = self.second_input_buffer.clone();
+                    if let Ok(ttl_secs) = self.third_input_buffer.parse::<u64>() {
+                        self.cache.insert_with_ttl(
+                            &key,
+                            value.as_str(),
+                            Duration::from_secs(ttl_secs),
+                        );
+                        self.add_message(format!(
+                            "✅ Inserted with TTL: {} = {} ({}s)",
+                            key, value, ttl_secs
+                        ));
+                    } else {
+                        self.add_message("❌ Invalid TTL value".to_string());
+                    }
+                    self.reset_input();
+                }
+                _ => {}
+            },
             Some(MenuItem::Get) => {
                 let key = self.input_buffer.clone();
                 let value_opt = self.cache.get(&key).cloned();
@@ -196,12 +201,14 @@ impl App {
                 self.reset_input();
             }
             Some(MenuItem::List) => {
-                let items = self.cache.list(ListProps::default().order(Order::Asc))
+                let items = self
+                    .cache
+                    .list(ListProps::default().order(Order::Asc))
                     .unwrap_or_default()
                     .into_iter()
                     .map(|(k, v)| (k, v.clone()))
                     .collect::<Vec<_>>();
-                    
+
                 if items.is_empty() {
                     self.add_message("📋 Cache is empty".to_string());
                 } else {
@@ -217,19 +224,26 @@ impl App {
             }
             Some(MenuItem::Filter) => {
                 let prefix = self.input_buffer.clone();
-                let items = self.cache.list(
-                    ListProps::default()
-                        .filter(Filter::StartWith(prefix.clone()))
-                        .order(Order::Asc)
-                ).unwrap_or_default()
+                let items = self
+                    .cache
+                    .list(
+                        ListProps::default()
+                            .filter(Filter::StartWith(prefix.clone()))
+                            .order(Order::Asc),
+                    )
+                    .unwrap_or_default()
                     .into_iter()
                     .map(|(k, v)| (k, v.clone()))
                     .collect::<Vec<_>>();
-                
+
                 if items.is_empty() {
                     self.add_message(format!("🔍 No items found with prefix: {}", prefix));
                 } else {
-                    self.add_message(format!("🔍 Found {} items with prefix '{}':", items.len(), prefix));
+                    self.add_message(format!(
+                        "🔍 Found {} items with prefix '{}':",
+                        items.len(),
+                        prefix
+                    ));
                     for (key, value) in items.iter().take(5) {
                         self.add_message(format!("  • {} = {:?}", key, value));
                     }
@@ -249,19 +263,22 @@ impl App {
             Some(MenuItem::Stats) => {
                 let len = self.cache.len();
                 let capacity = self.cache.capacity();
-                
+
                 self.add_message(format!("📊 Cache Statistics:"));
                 self.add_message(format!("  • Items: {}/{}", len, capacity));
                 self.add_message(format!("  • Capacity: {}", capacity));
-                self.add_message(format!("  • Usage: {:.1}%", (len as f64 / capacity as f64) * 100.0));
+                self.add_message(format!(
+                    "  • Usage: {:.1}%",
+                    (len as f64 / capacity as f64) * 100.0
+                ));
                 self.add_message(format!("  • Persistence: tui_cache.db (SQLite)"));
-                
+
                 self.reset_input();
             }
             _ => {}
         }
     }
-    
+
     fn reset_input(&mut self) {
         self.input_mode = false;
         self.input_buffer.clear();
@@ -270,7 +287,7 @@ impl App {
         self.current_action = None;
         self.input_stage = 0;
     }
-    
+
     fn get_input_prompt(&self) -> String {
         match (&self.current_action, self.input_stage) {
             (Some(MenuItem::Insert), 0) => "Enter key: ".to_string(),
@@ -284,7 +301,7 @@ impl App {
             _ => "Input: ".to_string(),
         }
     }
-    
+
     fn get_current_input(&self) -> &str {
         match self.input_stage {
             0 => &self.input_buffer,
@@ -293,7 +310,7 @@ impl App {
             _ => &self.input_buffer,
         }
     }
-    
+
     fn append_to_current_input(&mut self, c: char) {
         match self.input_stage {
             0 => self.input_buffer.push(c),
@@ -302,12 +319,18 @@ impl App {
             _ => {}
         }
     }
-    
+
     fn pop_from_current_input(&mut self) {
         match self.input_stage {
-            0 => { self.input_buffer.pop(); }
-            1 => { self.second_input_buffer.pop(); }
-            2 => { self.third_input_buffer.pop(); }
+            0 => {
+                self.input_buffer.pop();
+            }
+            1 => {
+                self.second_input_buffer.pop();
+            }
+            2 => {
+                self.third_input_buffer.pop();
+            }
             _ => {}
         }
     }
@@ -321,21 +344,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Err(e) => {
             eprintln!("Failed to initialize application: {}", e);
             eprintln!("Make sure the database path is writable.");
-            eprintln!("You can set QUICKLEAF_DB_PATH environment variable to use a different path.");
+            eprintln!(
+                "You can set QUICKLEAF_DB_PATH environment variable to use a different path."
+            );
             return Err(e);
         }
     };
-    
+
     // Setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
-    
+
     // Main loop
     let res = run_app(&mut terminal, &mut app);
-    
+
     // Restore terminal
     disable_raw_mode()?;
     execute!(
@@ -344,11 +369,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         DisableMouseCapture
     )?;
     terminal.show_cursor()?;
-    
+
     if let Err(err) = res {
         println!("Error: {:?}", err);
     }
-    
+
     Ok(())
 }
 
@@ -356,7 +381,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
     loop {
         terminal.draw(|f| ui(f, app))?;
-        
+
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
                 if app.input_mode {
@@ -394,13 +419,15 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                         KeyCode::Enter => {
                             let menu_items = MenuItem::all();
                             let selected = &menu_items[app.selected_menu];
-                            
+
                             match selected {
                                 MenuItem::Exit => {
                                     return Ok(());
                                 }
-                                MenuItem::List | MenuItem::Clear | 
-                                MenuItem::CleanupExpired | MenuItem::Stats => {
+                                MenuItem::List
+                                | MenuItem::Clear
+                                | MenuItem::CleanupExpired
+                                | MenuItem::Stats => {
                                     app.current_action = Some(selected.clone());
                                     app.execute_action();
                                 }
@@ -423,12 +450,9 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
 fn ui(f: &mut Frame, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(30),
-            Constraint::Percentage(70),
-        ])
+        .constraints([Constraint::Percentage(30), Constraint::Percentage(70)])
         .split(f.area());
-    
+
     // Left panel - Menu
     let menu_items = MenuItem::all();
     let items: Vec<ListItem> = menu_items
@@ -436,77 +460,81 @@ fn ui(f: &mut Frame, app: &App) {
         .enumerate()
         .map(|(i, item)| {
             let style = if i == app.selected_menu {
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default()
             };
             ListItem::new(item.name()).style(style)
         })
         .collect();
-    
-    let menu = List::new(items)
-        .block(Block::default()
+
+    let menu = List::new(items).block(
+        Block::default()
             .title(" 🍃 Quickleaf Menu ")
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Green)));
-    
+            .border_style(Style::default().fg(Color::Green)),
+    );
+
     f.render_widget(menu, chunks[0]);
-    
+
     // Right panel - split into description, messages, and input
     let right_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(4),  // Description
-            Constraint::Min(10),     // Messages
-            Constraint::Length(3),   // Input
+            Constraint::Length(4), // Description
+            Constraint::Min(10),   // Messages
+            Constraint::Length(3), // Input
         ])
         .split(chunks[1]);
-    
+
     // Description area
     let selected_item = &menu_items[app.selected_menu];
     let description = Paragraph::new(selected_item.description())
-        .block(Block::default()
-            .title(" Description ")
-            .borders(Borders::ALL))
+        .block(
+            Block::default()
+                .title(" Description ")
+                .borders(Borders::ALL),
+        )
         .style(Style::default().fg(Color::White))
         .alignment(Alignment::Left);
-    
+
     f.render_widget(description, right_chunks[0]);
-    
+
     // Messages area
-    let messages: Vec<ListItem> = app.messages
+    let messages: Vec<ListItem> = app
+        .messages
         .iter()
         .map(|msg| ListItem::new(msg.as_str()))
         .collect();
-    
+
     let messages_list = List::new(messages)
-        .block(Block::default()
-            .title(" Output ")
-            .borders(Borders::ALL))
+        .block(Block::default().title(" Output ").borders(Borders::ALL))
         .style(Style::default().fg(Color::Yellow));
-    
+
     f.render_widget(messages_list, right_chunks[1]);
-    
+
     // Input area (shown when in input mode)
     if app.input_mode {
         let input_text = format!("{}{}", app.get_input_prompt(), app.get_current_input());
         let input = Paragraph::new(input_text)
-            .block(Block::default()
-                .title(" Input (ESC to cancel, ENTER to submit) ")
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Cyan)))
+            .block(
+                Block::default()
+                    .title(" Input (ESC to cancel, ENTER to submit) ")
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Cyan)),
+            )
             .style(Style::default().fg(Color::White));
-        
+
         f.render_widget(Clear, right_chunks[2]);
         f.render_widget(input, right_chunks[2]);
     } else {
         let help = Paragraph::new("↑/↓: Navigate | Enter: Select | q: Quit")
-            .block(Block::default()
-                .title(" Help ")
-                .borders(Borders::ALL))
+            .block(Block::default().title(" Help ").borders(Borders::ALL))
             .style(Style::default().fg(Color::Gray))
             .alignment(Alignment::Center);
-        
+
         f.render_widget(help, right_chunks[2]);
     }
 }
