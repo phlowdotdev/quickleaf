@@ -277,13 +277,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 use quickleaf::{Cache, Duration};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Option 1: Use with_persist and insert items with individual TTL
     let mut cache = Cache::with_persist("cache.db", 1000)?;
-    
-    // Items with TTL are also persisted
     cache.insert_with_ttl(
         "session:abc", 
         "temp_data", 
         Duration::from_secs(3600)
+    );
+    
+    // Option 2: Use with_persist_and_ttl for default TTL on all items
+    let mut cache_with_default = Cache::with_persist_and_ttl(
+        "cache_with_ttl.db",
+        1000,
+        Duration::from_secs(300)  // 5 minutes default TTL
+    )?;
+    
+    // This item will use the default TTL (5 minutes)
+    cache_with_default.insert("auto_expire", "data");
+    
+    // You can still override with custom TTL
+    cache_with_default.insert_with_ttl(
+        "custom_expire",
+        "data",
+        Duration::from_secs(60)  // 1 minute instead of default 5
     );
     
     // TTL is preserved across restarts
@@ -301,6 +317,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - **TTL Preservation**: TTL values are preserved across restarts
 - **Efficient Storage**: Uses SQLite with optimized indexes for performance
 - **Compatibility**: Works seamlessly with all existing Quickleaf features
+
+#### Available Persistence Constructors
+
+| Constructor | Description | Use Case |
+|------------|-------------|----------|
+| `with_persist(path, capacity)` | Basic persistent cache | Simple persistence without events |
+| `with_persist_and_ttl(path, capacity, ttl)` | Persistent cache with default TTL | Session stores, temporary data with persistence |
+| `with_persist_and_sender(path, capacity, sender)` | Persistent cache with events | Monitoring, logging, real-time updates |
 
 ### 🔔 Event Notifications
 
@@ -427,6 +451,9 @@ let cache = Quickleaf::with_sender_and_ttl(capacity, sender, ttl);
 
 // With persistence (requires "persist" feature)
 let cache = Cache::with_persist("cache.db", capacity)?;
+
+// With persistence and default TTL
+let cache = Cache::with_persist_and_ttl("cache.db", capacity, ttl)?;
 
 // With persistence and events
 let cache = Cache::with_persist_and_sender("cache.db", capacity, sender)?;
