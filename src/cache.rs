@@ -387,9 +387,101 @@ impl Cache {
         Ok(cache)
     }
 
+    /// Creates a new cache with SQLite persistence and event notifications.
+    ///
+    /// This constructor combines SQLite persistence with custom event notifications.
+    /// You'll receive events for cache operations while data is also persisted to SQLite.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the SQLite database file
+    /// * `capacity` - Maximum number of items the cache can hold
+    /// * `sender` - Channel sender for event notifications
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # #[cfg(feature = "persist")]
+    /// # {
+    /// use quickleaf::Cache;
+    /// use std::sync::mpsc::channel;
+    /// 
+    /// let (tx, rx) = channel();
+    /// let mut cache = Cache::with_persist_and_sender("data/cache.db", 1000, tx).unwrap();
+    /// 
+    /// cache.insert("key", "value");
+    /// 
+    /// // Receive events for persisted operations
+    /// for event in rx.try_iter() {
+    ///     println!("Event: {:?}", event);
+    /// }
+    /// # }
+    /// ```
+    #[cfg(feature = "persist")]
+    pub fn with_persist_and_sender<P: AsRef<Path>>(
+        path: P,
+        capacity: usize,
+        external_sender: Sender<Event>,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        use crate::sqlite_store::{ensure_db_file, items_from_db, spawn_writer, PersistentEvent};
+        
+        let path = path.as_ref().to_path_buf();
+        
+        // Ensure the database file and directories exist
+        ensure_db_file(&path)?;
+        
+        // Create channels for internal event handling
+        let (event_tx, event_rx) = channel();
+        let (persist_tx, persist_rx) = channel();
+        
+        // Spawn the SQLite writer thread
+        spawn_writer(path.clone(), persist_rx);
+        
+        // Create the cache with event sender
+        let mut cache = Self::with_sender(capacity, event_tx);
+        
+        // Set up event forwarding to both SQLite writer and external sender
+        std::thread::spawn(move || {
+            while let Ok(event) = event_rx.recv() {
+                // Forward to external sender
+                let _ = external_sender.send(event.clone());
+                
+                // Forward to SQLite writer
+                let persistent_event = PersistentEvent::new(event);
+                if persist_tx.send(persistent_event).is_err() {
+                    break;
+                }
+            }
+        });
+        
+        // Load existing data from database
+        let items = items_from_db(&path)?;
+        for (key, item) in items {
+            // Directly insert into the map and list to avoid triggering events
+            if cache.map.len() < capacity {
+                let position = cache
+                    .list
+                    .iter()
+                    .position(|k| k > &key)
+                    .unwrap_or(cache.list.len());
+                cache.list.insert(position, key.clone());
+                cache.map.insert(key, item);
+            }
+        }
+        
+        Ok(cache)
+    }
+
     /// Creates a new cache with SQLite persistence and default TTL.
     ///
     /// This constructor combines SQLite persistence with a default TTL for all cache items.
+    /// Items will automatically expire after the specified duration and are persisted to SQLite.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the SQLite database file
+    /// * `capacity` - Maximum number of items the cache can hold
+    /// * `default_ttl` - Default time-to-live for all cache items
     ///
     /// # Examples
     ///
@@ -404,7 +496,7 @@ impl Cache {
     ///     1000,
     ///     Duration::from_secs(3600)
     /// ).unwrap();
-    /// cache.insert("session", "data");  // Will expire in 1 hour
+    /// cache.insert("session", "data");  // Will expire in 1 hour and be persisted
     /// # }
     /// ```
     #[cfg(feature = "persist")]

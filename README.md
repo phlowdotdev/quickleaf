@@ -14,6 +14,7 @@ Quickleaf Cache is a **fast**, **lightweight**, and **feature-rich** in-memory c
 - 📋 **Flexible Ordering**: Ascending/descending with pagination support
 - 🔔 **Event Notifications**: Real-time cache operation events
 - 🎯 **LRU Eviction**: Automatic removal of least recently used items
+- 💾 **Persistent Storage**: Optional SQLite-backed persistence for durability
 - 🛡️ **Type Safety**: Full Rust type safety with generic value support
 - 📦 **Lightweight**: Minimal external dependencies
 
@@ -23,7 +24,10 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-quickleaf = "0.3"
+quickleaf = "0.4"
+
+# For persistence support (optional)
+quickleaf = { version = "0.4", features = ["persist"] }
 ```
 
 ## 🚀 Quick Start
@@ -237,6 +241,67 @@ fn main() {
 }
 ```
 
+### 💾 Persistent Cache (SQLite Backend)
+
+Quickleaf supports optional persistence using SQLite as a backing store. This provides durability across application restarts while maintaining the same high-performance in-memory operations.
+
+#### Basic Persistent Cache
+
+```rust
+use quickleaf::Cache;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create a persistent cache backed by SQLite
+    let mut cache = Cache::with_persist("cache.db", 1000)?;
+    
+    // Insert data - automatically persisted
+    cache.insert("user:123", "Alice");
+    cache.insert("user:456", "Bob");
+    
+    // Data survives application restart
+    drop(cache);
+    
+    // Later or after restart...
+    let mut cache = Cache::with_persist("cache.db", 1000)?;
+    
+    // Data is still available
+    println!("{:?}", cache.get("user:123")); // Some("Alice")
+    
+    Ok(())
+}
+```
+
+#### Persistent Cache with TTL
+
+```rust
+use quickleaf::{Cache, Duration};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cache = Cache::with_persist("cache.db", 1000)?;
+    
+    // Items with TTL are also persisted
+    cache.insert_with_ttl(
+        "session:abc", 
+        "temp_data", 
+        Duration::from_secs(3600)
+    );
+    
+    // TTL is preserved across restarts
+    // Expired items are automatically cleaned up on load
+    
+    Ok(())
+}
+```
+
+#### Persistence Features
+
+- **Automatic Persistence**: All cache operations are automatically persisted
+- **Background Writer**: Non-blocking write operations using a background thread
+- **Crash Recovery**: Automatic recovery from unexpected shutdowns
+- **TTL Preservation**: TTL values are preserved across restarts
+- **Efficient Storage**: Uses SQLite with optimized indexes for performance
+- **Compatibility**: Works seamlessly with all existing Quickleaf features
+
 ### 🔔 Event Notifications
 
 ```rust
@@ -325,12 +390,23 @@ Quickleaf uses a dual-structure approach for optimal performance:
 - **HashMap**: O(1) key-value access
 - **Vec**: Maintains sorted key order for efficient iteration
 - **Lazy Cleanup**: TTL items are removed when accessed, not proactively
+- **SQLite Backend** (optional): Provides durable storage with background persistence
 
 ### TTL Strategy
 
 - **Lazy Cleanup**: Expired items are removed during access operations (`get`, `contains_key`, `list`)
 - **Manual Cleanup**: Use `cleanup_expired()` for proactive cleaning
-- **No Background Threads**: Zero overhead until items are accessed
+- **No Background Threads**: Zero overhead until items are accessed (except for optional persistence)
+
+### Persistence Architecture (Optional)
+
+When persistence is enabled:
+
+- **In-Memory First**: All operations work on the in-memory cache for speed
+- **Background Writer**: A separate thread handles SQLite writes asynchronously
+- **Event-Driven**: Cache operations trigger persistence events
+- **Auto-Recovery**: On startup, cache is automatically restored from SQLite
+- **Expired Cleanup**: Expired items are filtered out during load
 
 ## 🔧 API Reference
 
@@ -348,6 +424,12 @@ let cache = Quickleaf::with_sender(capacity, sender);
 
 // With both TTL and events
 let cache = Quickleaf::with_sender_and_ttl(capacity, sender, ttl);
+
+// With persistence (requires "persist" feature)
+let cache = Cache::with_persist("cache.db", capacity)?;
+
+// With persistence and events
+let cache = Cache::with_persist_and_sender("cache.db", capacity, sender)?;
 ```
 
 ### Core Operations
@@ -429,6 +511,12 @@ Check out the `examples/` directory for more comprehensive examples:
 ```bash
 # Run the TTL example
 cargo run --example ttl_example
+
+# Run the persistence example
+cargo run --example test_persist --features persist
+
+# Run the interactive TUI with persistence
+cargo run --example tui_interactive --features tui-example
 ```
 
 ## 🤝 Contributing
