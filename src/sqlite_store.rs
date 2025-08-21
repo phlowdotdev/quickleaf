@@ -15,6 +15,8 @@ use rusqlite::{params, Connection, Result};
 use crate::cache::CacheItem;
 use crate::event::Event;
 use crate::valu3::traits::ToValueBehavior;
+use crate::valu3::value::Value;
+use serde_json;
 
 /// Extended event structure for persistence
 #[derive(Clone, Debug)]
@@ -91,11 +93,13 @@ pub(crate) fn items_from_db(path: &Path) -> Result<Vec<(String, CacheItem)>, Box
     
     let items = stmt.query_map(params![now], |row| {
         let key: String = row.get(0)?;
-        let value_str: String = row.get(1)?;
+        let value_json: String = row.get(1)?;
         let created_at_secs: i64 = row.get(2)?;
         let ttl_seconds: Option<i64> = row.get(3)?;
         
-        let value = value_str.to_value();
+        // Deserialize from JSON to preserve value type
+        let value = serde_json::from_str::<Value>(&value_json)
+            .unwrap_or_else(|_| value_json.to_value());
         let created_at = UNIX_EPOCH + Duration::from_secs(created_at_secs as u64);
         let ttl = ttl_seconds.map(|secs| Duration::from_secs(secs as u64));
         
@@ -199,14 +203,16 @@ impl SqliteWriter {
         
         match &event.event {
             Event::Insert(data) => {
-                let value_str = data.value.to_string();
+                // Serialize to JSON to preserve value type
+                let value_json = serde_json::to_string(&data.value)
+                    .unwrap_or_else(|_| data.value.to_string());
                 
                 // Insert or update cache item
                 // Note: We don't have TTL info in the event, so we'll handle it separately
                 self.conn.execute(
                     "INSERT OR REPLACE INTO cache_items (key, value, created_at, ttl_seconds, expires_at) 
                      VALUES (?, ?, ?, NULL, NULL)",
-                    params![&data.key, &value_str, timestamp],
+                    params![&data.key, &value_json, timestamp],
                 )?;
             }
             Event::Remove(data) => {
@@ -248,8 +254,8 @@ pub(crate) fn spawn_writer(path: PathBuf, receiver: Receiver<PersistentEvent>) -
     })
 }
 
-/// Insert with TTL support - helper function to update TTL
-pub(crate) fn update_item_ttl(path: &Path, key: &str, ttl_seconds: u64) -> Result<(), Box<dyn std::error::Error>> {
+/// Persist an item with TTL directly to the database
+pub(crate) fn persist_item_with_ttl(path: &Path, key: &str, value: &Value, ttl_seconds: u64) -> Result<(), Box<dyn std::error::Error>> {
     let conn = Connection::open(path)?;
     
     let now = SystemTime::now()
@@ -257,10 +263,13 @@ pub(crate) fn update_item_ttl(path: &Path, key: &str, ttl_seconds: u64) -> Resul
         .as_secs() as i64;
     
     let expires_at = now + ttl_seconds as i64;
+    let value_json = serde_json::to_string(value)
+        .unwrap_or_else(|_| value.to_string());
     
     conn.execute(
-        "UPDATE cache_items SET ttl_seconds = ?, expires_at = ? WHERE key = ?",
-        params![ttl_seconds as i64, expires_at, key],
+        "INSERT OR REPLACE INTO cache_items (key, value, created_at, ttl_seconds, expires_at) 
+         VALUES (?, ?, ?, ?, ?)",
+        params![key, value_json, now, ttl_seconds as i64, expires_at],
     )?;
     
     Ok(())

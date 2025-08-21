@@ -199,6 +199,8 @@ pub struct Cache {
     capacity: usize,
     default_ttl: Option<Duration>,
     sender: Option<Sender<Event>>,
+    #[cfg(feature = "persist")]
+    persist_path: Option<std::path::PathBuf>,
     _phantom: std::marker::PhantomData<Value>,
 }
 
@@ -230,6 +232,8 @@ impl Cache {
             capacity,
             default_ttl: None,
             sender: None,
+            #[cfg(feature = "persist")]
+            persist_path: None,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -259,6 +263,8 @@ impl Cache {
             capacity,
             default_ttl: None,
             sender: Some(sender),
+            #[cfg(feature = "persist")]
+            persist_path: None,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -284,6 +290,8 @@ impl Cache {
             capacity,
             default_ttl: Some(default_ttl),
             sender: None,
+            #[cfg(feature = "persist")]
+            persist_path: None,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -317,6 +325,8 @@ impl Cache {
             capacity,
             default_ttl: Some(default_ttl),
             sender: Some(sender),
+            #[cfg(feature = "persist")]
+            persist_path: None,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -358,6 +368,7 @@ impl Cache {
         
         // Create the cache with event sender
         let mut cache = Self::with_sender(capacity, event_tx);
+        cache.persist_path = Some(path.clone());
         
         // Set up event forwarding to SQLite writer
         std::thread::spawn(move || {
@@ -439,6 +450,7 @@ impl Cache {
         
         // Create the cache with event sender
         let mut cache = Self::with_sender(capacity, event_tx);
+        cache.persist_path = Some(path.clone());
         
         // Set up event forwarding to both SQLite writer and external sender
         std::thread::spawn(move || {
@@ -521,6 +533,7 @@ impl Cache {
         
         // Create the cache with event sender and TTL
         let mut cache = Self::with_sender_and_ttl(capacity, event_tx, default_ttl);
+        cache.persist_path = Some(path.clone());
         
         // Set up event forwarding to SQLite writer
         std::thread::spawn(move || {
@@ -611,6 +624,7 @@ impl Cache {
         
         // Create the cache with event sender and TTL
         let mut cache = Self::with_sender_and_ttl(capacity, event_tx, default_ttl);
+        cache.persist_path = Some(path.clone());
         
         // Set up event forwarding to both SQLite writer and external sender
         std::thread::spawn(move || {
@@ -779,7 +793,20 @@ impl Cache {
         self.list.insert(position, key.clone());
         self.map.insert(key.clone(), item.clone());
 
-        self.send_insert(key, item.value);
+        self.send_insert(key.clone(), item.value.clone());
+        
+        // Update TTL in SQLite if we have persistence
+        #[cfg(feature = "persist")]
+        if let Some(persist_path) = &self.persist_path {
+            if let Some(ttl_secs) = item.ttl {
+                let _ = crate::sqlite_store::persist_item_with_ttl(
+                    persist_path,
+                    &key,
+                    &item.value,
+                    ttl_secs.as_secs(),
+                );
+            }
+        }
     }
 
     /// Retrieves a value from the cache by key.

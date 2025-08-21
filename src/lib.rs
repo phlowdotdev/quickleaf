@@ -351,6 +351,9 @@ mod quickleaf;
 mod tests;
 #[cfg(test)]
 mod ttl_tests;
+#[cfg(test)]
+#[cfg(feature = "persist")]
+mod persist_tests;
 
 pub use cache::{Cache, CacheItem};
 pub use error::Error;
