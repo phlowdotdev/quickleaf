@@ -14,7 +14,7 @@ use std::fmt::{Debug, Display};
 /// use quickleaf::valu3::traits::ToValueBehavior;
 ///
 /// let mut cache = Cache::new(10);
-/// 
+///
 /// // Trying to remove a non-existent key returns an error
 /// match cache.remove("nonexistent") {
 ///     Err(Error::KeyNotFound) => println!("Key not found as expected"),
@@ -46,25 +46,25 @@ pub enum Error {
     /// }
     /// ```
     SortKeyNotFound,
-    
+
     /// A cache with the same identifier already exists.
     ///
     /// This error is currently not used in the main API but reserved for
     /// future functionality.
     CacheAlreadyExists,
-    
+
     /// A sort key already exists.
     ///
     /// This error is currently not used in the main API but reserved for
     /// future functionality.
     SortKeyExists,
-    
+
     /// A table with the same name already exists.
     ///
     /// This error is currently not used in the main API but reserved for
     /// future functionality.
     TableAlreadyExists,
-    
+
     /// The specified key was not found in the cache.
     ///
     /// This occurs when trying to remove a key that doesn't exist.
@@ -77,7 +77,7 @@ pub enum Error {
     /// use quickleaf::valu3::traits::ToValueBehavior;
     ///
     /// let mut cache = Cache::new(10);
-    /// 
+    ///
     /// match cache.remove("missing_key") {
     ///     Err(Error::KeyNotFound) => println!("Key not found"),
     ///     Err(_) => println!("Other error"),

@@ -25,19 +25,19 @@
 /// let start_filter = Filter::StartWith("apple".to_string());
 /// let props = ListProps::default().filter(start_filter);
 /// let results = cache.list(props).unwrap();
-/// assert_eq!(results.len(), 2); // apple_pie, apple_juice
+/// assert_eq!(results.len(), 2); 
 ///
 /// // Filter by suffix
 /// let end_filter = Filter::EndWith("juice".to_string());
 /// let props = ListProps::default().filter(end_filter);
 /// let results = cache.list(props).unwrap();
-/// assert_eq!(results.len(), 2); // apple_juice, grape_juice
+/// assert_eq!(results.len(), 2); 
 ///
 /// // Filter by both prefix and suffix
 /// let both_filter = Filter::StartAndEndWith("apple".to_string(), "juice".to_string());
 /// let props = ListProps::default().filter(both_filter);
 /// let results = cache.list(props).unwrap();
-/// assert_eq!(results.len(), 1); // apple_juice
+/// assert_eq!(results.len(), 1); 
 /// ```
 #[derive(Debug)]
 pub enum Filter {

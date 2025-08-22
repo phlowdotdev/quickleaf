@@ -35,7 +35,6 @@ impl PersistentEvent {
 
 /// Initialize SQLite database with schema
 fn init_database(conn: &Connection) -> Result<()> {
-    // Create main cache table
     conn.execute(
         "CREATE TABLE IF NOT EXISTS cache_items (
             key TEXT PRIMARY KEY NOT NULL,
@@ -47,7 +46,6 @@ fn init_database(conn: &Connection) -> Result<()> {
         [],
     )?;
 
-    // Create indices for performance
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_expires 
          ON cache_items(expires_at) 
@@ -71,11 +69,9 @@ pub(crate) fn items_from_db(
     let conn = Connection::open(path)?;
     init_database(&conn)?;
 
-    // Try WAL mode, fallback to DELETE if not supported
     let _ = conn.execute_batch("PRAGMA journal_mode = DELETE;");
     let _ = conn.execute_batch("PRAGMA busy_timeout = 5000;");
 
-    // Clean up expired items first
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() as i64;
 
     conn.execute(
@@ -83,7 +79,6 @@ pub(crate) fn items_from_db(
         params![now],
     )?;
 
-    // Load all valid items
     let mut stmt = conn.prepare(
         "SELECT key, value, created_at, ttl_seconds 
          FROM cache_items 
@@ -96,10 +91,9 @@ pub(crate) fn items_from_db(
         let created_at_secs: i64 = row.get(2)?;
         let ttl_seconds: Option<i64> = row.get(3)?;
 
-        // Deserialize from JSON to preserve value type
         let value = Value::json_to_value(&value_json).unwrap_or_else(|_| value_json.to_value());
-        let created_at = created_at_secs as u64 * 1000; // Convert seconds to milliseconds
-        let ttl_millis = ttl_seconds.map(|secs| secs as u64 * 1000); // Convert to millis
+        let created_at = created_at_secs as u64 * 1000;
+        let ttl_millis = ttl_seconds.map(|secs| secs as u64 * 1000);
 
         Ok((
             key,
@@ -121,16 +115,13 @@ pub(crate) fn items_from_db(
 
 /// Ensure the database file exists and is initialized
 pub(crate) fn ensure_db_file(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    // Create parent directories if they don't exist
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
 
-    // Open connection (creates file if doesn't exist) and init schema
     let conn = Connection::open(path)?;
     init_database(&conn)?;
 
-    // Use DELETE mode for compatibility
     let _ = conn.execute_batch("PRAGMA journal_mode = DELETE;");
     let _ = conn.execute_batch("PRAGMA busy_timeout = 5000;");
 
@@ -151,16 +142,13 @@ impl SqliteWriter {
         let conn = Connection::open(&path)?;
         init_database(&conn)?;
 
-        // Try WAL mode first, but fallback to DELETE if not supported (WSL/network FS)
         match conn.execute_batch("PRAGMA journal_mode = WAL;") {
             Ok(_) => {}
             Err(_) => {
-                // Fallback to DELETE mode for filesystems that don't support WAL
                 let _ = conn.execute_batch("PRAGMA journal_mode = DELETE;");
             }
         }
 
-        // Set other pragmas for performance
         let _ = conn.execute_batch(
             "PRAGMA synchronous = NORMAL;
              PRAGMA cache_size = 10000;
@@ -173,7 +161,6 @@ impl SqliteWriter {
 
     pub fn run(mut self) {
         loop {
-            // Try to receive with timeout
             match self.receiver.recv_timeout(Duration::from_millis(100)) {
                 Ok(event) => {
                     if let Err(e) = self.process_event(&event) {
@@ -181,13 +168,11 @@ impl SqliteWriter {
                     }
                 }
                 Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-                    // Periodic cleanup of expired items
                     if let Err(e) = self.cleanup_expired() {
                         eprintln!("Error cleaning up expired items: {}", e);
                     }
                 }
                 Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
-                    // Channel closed, exit
                     break;
                 }
             }
@@ -203,11 +188,8 @@ impl SqliteWriter {
 
         match &event.event {
             Event::Insert(data) => {
-                // Serialize to JSON to preserve value type
                 let value_json = data.value.to_json(JsonMode::Inline);
 
-                // Insert or update cache item
-                // Note: We don't have TTL info in the event, so we'll handle it separately
                 self.conn.execute(
                     "INSERT OR REPLACE INTO cache_items (key, value, created_at, ttl_seconds, expires_at) 
                      VALUES (?, ?, ?, NULL, NULL)",

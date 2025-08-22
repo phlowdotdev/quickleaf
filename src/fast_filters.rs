@@ -12,12 +12,12 @@ pub fn fast_prefix_match(text: &str, prefix: &str) -> bool {
         return false;
     }
 
-    // Use unsafe for maximum performance - we know bounds are safe
+    
     unsafe {
         let text_bytes = text.as_bytes();
         let prefix_bytes = prefix.as_bytes();
 
-        // Compare 8 bytes at a time when possible
+        
         let chunks = prefix_bytes.len() / 8;
         let mut i = 0;
 
@@ -31,7 +31,7 @@ pub fn fast_prefix_match(text: &str, prefix: &str) -> bool {
             i += 8;
         }
 
-        // Handle remaining bytes
+        
         for j in i..prefix_bytes.len() {
             if text_bytes[j] != prefix_bytes[j] {
                 return false;
@@ -57,11 +57,11 @@ pub fn fast_suffix_match(text: &str, suffix: &str) -> bool {
     let start_pos = text_bytes.len() - suffix_bytes.len();
 
     unsafe {
-        // Compare from the end backwards for early termination
+        
         let text_suffix = text_bytes.as_ptr().add(start_pos);
         let suffix_ptr = suffix_bytes.as_ptr();
 
-        // Use libc memcmp for optimal performance
+        
         libc::memcmp(
             text_suffix as *const libc::c_void,
             suffix_ptr as *const libc::c_void,

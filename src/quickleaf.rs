@@ -33,8 +33,8 @@ use crate::Cache;
 /// use std::time::Duration;
 ///
 /// let mut cache = Quickleaf::with_default_ttl(50, Duration::from_secs(300));
-/// cache.insert("session", "active");  // Will expire in 5 minutes
-/// cache.insert_with_ttl("temp", "data", Duration::from_secs(60));  // Custom TTL
+/// cache.insert("session", "active");  
+/// cache.insert_with_ttl("temp", "data", Duration::from_secs(60));  
 ///
 /// assert!(cache.contains_key("session"));
 /// ```
