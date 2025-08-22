@@ -5,17 +5,15 @@
 
 #![cfg(feature = "persist")]
 
-use std::path::{Path, PathBuf};
-use std::sync::mpsc::Receiver;
-use std::thread;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-
-use rusqlite::{params, Connection, Result};
-
 use crate::cache::CacheItem;
 use crate::event::Event;
 use crate::valu3::prelude::*;
 use crate::valu3::traits::ToValueBehavior;
+use rusqlite::{params, Connection, Result};
+use std::path::{Path, PathBuf};
+use std::sync::mpsc::Receiver;
+use std::thread;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// Extended event structure for persistence
 #[derive(Clone, Debug)]

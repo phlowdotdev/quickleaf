@@ -1,17 +1,15 @@
-use indexmap::IndexMap;
-use std::fmt::Debug;
-use std::time::{Duration, SystemTime};
-
-use valu3::traits::ToValueBehavior;
-use valu3::value::Value;
-
 use crate::error::Error;
 use crate::event::Event;
 use crate::fast_filters::apply_filter_fast;
 use crate::list_props::{ListProps, Order, StartAfter};
 use crate::prefetch::{Prefetch, PrefetchExt};
 use crate::string_pool::StringPool;
+use indexmap::IndexMap;
+use std::fmt::Debug;
 use std::sync::mpsc::Sender;
+use std::time::{Duration, SystemTime};
+use valu3::traits::ToValueBehavior;
+use valu3::value::Value;
 
 #[cfg(feature = "persist")]
 use std::path::Path;
