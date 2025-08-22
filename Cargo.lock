@@ -805,13 +805,12 @@ dependencies = [
 
 [[package]]
 name = "quickleaf"
-version = "0.4.3"
+version = "0.4.4"
 dependencies = [
  "criterion",
  "crossterm 0.29.0",
  "hashbrown",
  "indexmap",
- "libc",
  "ratatui",
  "rusqlite",
  "valu3",
