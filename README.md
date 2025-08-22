@@ -1,7 +1,7 @@
 # 🍃 Quickleaf Cache
 
 [![Crates.io](https://img.shields.io/crates/v/quickleaf.svg)](https://crates.io/crates/quickleaf)
-[![License](https://img.shields.io/crates/l/quickleaf.svg)](https://github.com/lowcarboncode/quickleaf/blob/main/LICENSE)
+[![License](https://img.shields.io/crates/l/quickleaf.svg)](https://github.com/phlowdotdev/quickleaf/blob/main/LICENSE)
 [![Documentation](https://docs.rs/quickleaf/badge.svg)](https://docs.rs/quickleaf)
 
 Quickleaf Cache is a **fast**, **lightweight**, and **feature-rich** in-memory cache library for Rust. It combines the simplicity of a HashMap with advanced caching features like **TTL (Time To Live)**, **filtering**, **ordering**, and **event notifications**.
@@ -863,7 +863,7 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 
 ```bash
 # Clone the repository
-git clone https://github.com/lowcarboncode/quickleaf.git
+git clone https://github.com/phlowdotdev/quickleaf.git
 cd quickleaf
 
 # Run tests
@@ -918,11 +918,11 @@ This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENS
 
 - [Documentation](https://docs.rs/quickleaf)
 - [Crates.io](https://crates.io/crates/quickleaf)
-- [Repository](https://github.com/lowcarboncode/quickleaf)
-- [Issues](https://github.com/lowcarboncode/quickleaf/issues)
+- [Repository](https://github.com/phlowdotdev/quickleaf)
+- [Issues](https://github.com/phlowdotdev/quickleaf/issues)
 
 ---
 
-**Made with ❤️ by the LowCarbonCode team**
+**Made with ❤️ by the [phlow.dev](https://phlow.dev) team**
 
 *Quickleaf v0.4+ features advanced performance optimizations including SIMD acceleration, memory prefetch hints, string pooling, and TTL optimization - delivering up to 48% performance improvements while maintaining full API compatibility.*

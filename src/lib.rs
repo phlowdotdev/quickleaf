@@ -12,7 +12,7 @@
 //! - **Persistent storage** using SQLite (optional feature)
 //! - Custom error handling
 //! - Event notifications for cache operations
-//! - Support for generic values using [valu3](https://github.com/lowcarboncode/valu3)
+//! - Support for generic values using [valu3](https://github.com/phlowdotdev/valu3)
 //!
 //! ## Installation
 //!
@@ -21,7 +21,7 @@
 //! ```toml
 //! [dependencies]
 //! quickleaf = "0.3"
-//! 
+//!
 //! # For persistence support (optional)
 //! quickleaf = { version = "0.3", features = ["persist"] }
 //! ```
@@ -254,8 +254,8 @@
 //!     
 //!     // Items with TTL are also persisted
 //!     cache.insert_with_ttl(
-//!         "session:abc", 
-//!         "temp_data", 
+//!         "session:abc",
+//!         "temp_data",
 //!         Duration::from_secs(3600)
 //!     );
 //!     
@@ -341,22 +341,22 @@
 mod cache;
 mod error;
 mod event;
+mod fast_filters;
 mod filter;
 mod list_props;
+#[cfg(test)]
 #[cfg(feature = "persist")]
-mod sqlite_store;
+mod persist_tests;
+mod prefetch;
 pub mod prelude;
 mod quickleaf;
+#[cfg(feature = "persist")]
+mod sqlite_store;
 mod string_pool;
-mod fast_filters;
-mod prefetch;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod ttl_tests;
-#[cfg(test)]
-#[cfg(feature = "persist")]
-mod persist_tests;
 
 pub use cache::{Cache, CacheItem};
 pub use error::Error;
