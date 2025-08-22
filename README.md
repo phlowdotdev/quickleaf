@@ -552,14 +552,6 @@ cache.insert_with_ttl("session", "data", Duration::from_secs(300));
 - **Real-World Workloads**: Benchmarks based on actual use cases and patterns
 - **Cross-Platform Validation**: Performance testing across different architectures and systems
 
-### Performance Characteristics by Feature
-
-| Feature | Primary Benefit | Performance Gain | Use Case |
-|---------|----------------|------------------|----------|
-| **Optimized Filters** | Algorithm efficiency | 10-15% faster filtering | Large dataset operations |
-| **TTL Caching** | Syscall reduction | 25-30% faster TTL ops | Time-sensitive applications |
-| **IndexMap** | Memory layout | 5-8% faster iteration | Frequent list operations |
-
 ### Compatibility & Fallbacks
 
 - **Graceful Degradation**: All optimizations have safe fallbacks for unsupported systems
