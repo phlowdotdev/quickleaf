@@ -104,3 +104,5 @@ impl Debug for Error {
         Display::fmt(&self, f)
     }
 }
+
+impl std::error::Error for Error {}

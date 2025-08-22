@@ -62,7 +62,7 @@ pub enum Event {
     /// }
     /// ```
     Insert(EventData),
-    
+
     /// An item was removed from the cache.
     ///
     /// # Examples
@@ -81,7 +81,7 @@ pub enum Event {
     /// }
     /// ```
     Remove(EventData),
-    
+
     /// The entire cache was cleared.
     ///
     /// # Examples
@@ -134,7 +134,7 @@ impl Event {
     /// use quickleaf::valu3::traits::ToValueBehavior;
     ///
     /// let event = Event::insert("user_session".to_string(), "active".to_value());
-    /// 
+    ///
     /// match event {
     ///     Event::Insert(data) => {
     ///         assert_eq!(data.key, "user_session");
@@ -156,7 +156,7 @@ impl Event {
     /// use quickleaf::valu3::traits::ToValueBehavior;
     ///
     /// let event = Event::remove("expired_key".to_string(), "old_data".to_value());
-    /// 
+    ///
     /// match event {
     ///     Event::Remove(data) => {
     ///         assert_eq!(data.key, "expired_key");
@@ -177,7 +177,7 @@ impl Event {
     /// use quickleaf::Event;
     ///
     /// let event = Event::clear();
-    /// 
+    ///
     /// match event {
     ///     Event::Clear => println!("Cache was cleared"),
     ///     _ => panic!("Expected clear event"),
