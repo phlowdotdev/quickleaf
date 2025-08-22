@@ -12,7 +12,7 @@
 //! - **Persistent storage** using SQLite (optional feature)
 //! - Custom error handling
 //! - Event notifications for cache operations
-//! - Support for generic values using [valu3](https://github.com/phlowdotdev/valu3)
+//! - Support for generic values using [valu3](https:
 //!
 //! ## Installation
 //!
@@ -20,10 +20,10 @@
 //!
 //! ```toml
 //! [dependencies]
-//! quickleaf = "0.3"
+//! quickleaf = "0.4"
 //!
 //! # For persistence support (optional)
-//! quickleaf = { version = "0.3", features = ["persist"] }
+//! quickleaf = { version = "0.4", features = ["persist"] }
 //! ```
 //!
 //! ## Usage
@@ -135,14 +135,14 @@
 //! fn main() {
 //!     let mut cache = Quickleaf::new(10);
 //!     
-//!     // Insert with specific TTL (5 seconds)
+//!     
 //!     cache.insert_with_ttl("session", "user_data", Duration::from_secs(5));
 //!     
-//!     // Insert with default TTL
-//!     let mut cache_with_default = Quickleaf::with_default_ttl(10, Duration::from_secs(60));
-//!     cache_with_default.insert("key", "value"); // Will expire in 60 seconds
 //!     
-//!     // Manual cleanup of expired items
+//!     let mut cache_with_default = Quickleaf::with_default_ttl(10, Duration::from_secs(60));
+//!     cache_with_default.insert("key", "value");
+//!     
+//!     
 //!     let removed_count = cache.cleanup_expired();
 //!     println!("Removed {} expired items", removed_count);
 //! }
@@ -210,7 +210,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! quickleaf = { version = "0.3", features = ["persist"] }
+//! quickleaf = { version = "0.4", features = ["persist"] }
 //! ```
 //!
 //! ### Basic Persistent Cache
@@ -221,21 +221,16 @@
 //! use quickleaf::Cache;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     // Create a persistent cache backed by SQLite
 //!     let mut cache = Cache::with_persist("cache.db", 1000)?;
 //!     
-//!     // Insert data - automatically persisted
 //!     cache.insert("user:123", "Alice");
 //!     cache.insert("user:456", "Bob");
 //!     
-//!     // Data survives application restart
 //!     drop(cache);
 //!     
-//!     // Later or after restart...
 //!     let mut cache = Cache::with_persist("cache.db", 1000)?;
 //!     
-//!     // Data is still available
-//!     println!("{:?}", cache.get("user:123")); // Some("Alice")
+//!     println!("{:?}", cache.get("user:123"));
 //!     
 //!     Ok(())
 //! }
@@ -252,15 +247,12 @@
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut cache = Cache::with_persist("cache.db", 1000)?;
 //!     
-//!     // Items with TTL are also persisted
+//!     
 //!     cache.insert_with_ttl(
 //!         "session:abc",
 //!         "temp_data",
 //!         Duration::from_secs(3600)
 //!     );
-//!     
-//!     // TTL is preserved across restarts
-//!     // Expired items are automatically cleaned up on load
 //!     
 //!     Ok(())
 //! }
@@ -278,12 +270,10 @@
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let (tx, rx) = channel();
 //!     
-//!     // Create persistent cache with event notifications
 //!     let mut cache = Cache::with_persist_and_sender("cache.db", 1000, tx)?;
 //!     
 //!     cache.insert("key1", "value1");
 //!     
-//!     // Events are sent for persisted operations
 //!     for event in rx.try_iter() {
 //!         println!("Event: {:?}", event);
 //!     }
@@ -305,21 +295,17 @@
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let (tx, rx) = channel();
 //!     
-//!     // Create cache with all persistence features
 //!     let mut cache = Cache::with_persist_and_sender_and_ttl(
 //!         "full_featured_cache.db",
 //!         1000,
 //!         tx,
-//!         Duration::from_secs(3600)  // 1 hour default TTL
+//!         Duration::from_secs(3600)  
 //!     )?;
 //!     
-//!     // Insert data - it will be persisted, send events, and expire in 1 hour
 //!     cache.insert("session", "user_data");
 //!     
-//!     // Override default TTL for specific items
 //!     cache.insert_with_ttl("temp", "data", Duration::from_secs(60));
 //!     
-//!     // Process events
 //!     for event in rx.try_iter() {
 //!         println!("Event: {:?}", event);
 //!     }
@@ -341,8 +327,8 @@
 mod cache;
 mod error;
 mod event;
-mod fast_filters;
 mod filter;
+pub mod filters;
 mod list_props;
 #[cfg(test)]
 #[cfg(feature = "persist")]
@@ -352,7 +338,6 @@ pub mod prelude;
 mod quickleaf;
 #[cfg(feature = "persist")]
 mod sqlite_store;
-mod string_pool;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

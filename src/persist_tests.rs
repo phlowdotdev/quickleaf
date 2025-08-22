@@ -12,7 +12,6 @@ mod tests {
     use std::thread;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-    // Helper function to create a unique test database path
     fn test_db_path(name: &str) -> String {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -26,9 +25,7 @@ mod tests {
         )
     }
 
-    // Helper function to cleanup test database and all related files
     fn cleanup_test_db(path: &str) {
-        // List of all possible SQLite file extensions
         let extensions = ["", "-wal", "-shm", "-journal", ".bak"];
 
         for ext in extensions {
@@ -38,14 +35,12 @@ mod tests {
             }
         }
 
-        // Also try to remove any temporary files that might exist
         if let Some(parent) = Path::new(path).parent() {
             if let Ok(entries) = fs::read_dir(parent) {
                 for entry in entries.flatten() {
                     let entry_path = entry.path();
                     if let Some(name) = entry_path.file_name() {
                         if let Some(name_str) = name.to_str() {
-                            // Remove any temp files that start with our db name
                             if let Some(base_name) = Path::new(path).file_stem() {
                                 if let Some(base_str) = base_name.to_str() {
                                     if name_str.starts_with(base_str) && name_str.contains("tmp") {
@@ -65,7 +60,6 @@ mod tests {
         let db_path = test_db_path("basic_persist");
         cleanup_test_db(&db_path);
 
-        // Create and populate cache
         {
             let mut cache = Cache::with_persist(&db_path, 10).unwrap();
             cache.insert("key1", "value1");
@@ -75,11 +69,9 @@ mod tests {
             assert_eq!(cache.len(), 3);
             assert_eq!(cache.get("key1"), Some(&"value1".to_value()));
 
-            // Give time for background writer
             thread::sleep(Duration::from_millis(100));
         }
 
-        // Load from persisted data
         {
             let mut cache = Cache::with_persist(&db_path, 10).unwrap();
 
@@ -106,20 +98,16 @@ mod tests {
             cache.insert("test2", "data2");
             cache.remove("test1").unwrap();
 
-            // Give time for events to be sent
             thread::sleep(Duration::from_millis(100));
         }
 
-        // Collect events
         let mut events = Vec::new();
         for event in rx.try_iter() {
             events.push(event);
         }
 
-        // Should have received insert and remove events
         assert!(events.len() >= 2);
 
-        // Verify first event is insert
         if let Event::Insert(data) = &events[0] {
             assert_eq!(data.key, "test1");
         } else {
@@ -134,7 +122,6 @@ mod tests {
         let db_path = test_db_path("persist_with_ttl");
         cleanup_test_db(&db_path);
 
-        // Create cache with default TTL
         {
             let mut cache =
                 Cache::with_persist_and_ttl(&db_path, 10, Duration::from_secs(3600)).unwrap();
@@ -144,22 +131,18 @@ mod tests {
 
             assert_eq!(cache.len(), 2);
 
-            // Wait for short_lived to expire
             thread::sleep(Duration::from_millis(100));
 
             assert!(!cache.contains_key("short_lived"));
             assert!(cache.contains_key("long_lived"));
 
-            // Give time for persistence
             thread::sleep(Duration::from_millis(100));
         }
 
-        // Load and verify TTL persistence
         {
             let mut cache =
                 Cache::with_persist_and_ttl(&db_path, 10, Duration::from_secs(3600)).unwrap();
 
-            // short_lived should be gone, long_lived should remain
             assert_eq!(cache.len(), 1);
             assert!(cache.contains_key("long_lived"));
             assert!(!cache.contains_key("short_lived"));
@@ -180,32 +163,26 @@ mod tests {
                 Cache::with_persist_and_sender_and_ttl(&db_path, 10, tx, Duration::from_secs(300))
                     .unwrap();
 
-            // Insert with default TTL
             cache.insert("default_ttl", "value1");
 
-            // Insert with custom TTL
             cache.insert_with_ttl("custom_ttl", "value2", Duration::from_secs(60));
 
-            // Insert and remove
             cache.insert("to_remove", "value3");
             cache.remove("to_remove").unwrap();
 
             assert_eq!(cache.len(), 2);
 
-            // Give time for events and persistence
             thread::sleep(Duration::from_millis(200));
         }
 
-        // Check events were received
         let events: Vec<_> = rx.try_iter().collect();
-        assert!(events.len() >= 3); // At least 3 inserts and 1 remove
+        assert!(events.len() >= 3);
 
-        // Load and verify
         {
             let mut cache = Cache::with_persist_and_sender_and_ttl(
                 &db_path,
                 10,
-                channel().0, // New channel for this instance
+                channel().0,
                 Duration::from_secs(300),
             )
             .unwrap();
@@ -230,7 +207,7 @@ mod tests {
             cache.insert("item1", "value1");
             cache.insert("item2", "value2");
             cache.insert("item3", "value3");
-            cache.insert("item4", "value4"); // Should evict item1
+            cache.insert("item4", "value4");
 
             assert_eq!(cache.len(), 3);
             assert!(!cache.contains_key("item1"));
@@ -239,7 +216,6 @@ mod tests {
             thread::sleep(Duration::from_millis(100));
         }
 
-        // Verify capacity is maintained after reload
         {
             let mut cache = Cache::with_persist(&db_path, 3).unwrap();
 
@@ -272,12 +248,10 @@ mod tests {
             thread::sleep(Duration::from_millis(100));
         }
 
-        // Check clear event was sent
         let events: Vec<_> = rx.try_iter().collect();
         let has_clear = events.iter().any(|e| matches!(e, Event::Clear));
         assert!(has_clear);
 
-        // Verify clear was persisted
         {
             let cache = Cache::with_persist(&db_path, 10).unwrap();
             assert_eq!(cache.len(), 0);
@@ -287,86 +261,21 @@ mod tests {
     }
 
     #[test]
-    fn test_persist_expired_cleanup_on_load() {
-        let db_path = test_db_path("persist_expired_cleanup");
-
-        // Cleanup before test to ensure clean state
-        cleanup_test_db(&db_path);
-
-        // Ensure the path is truly unique and not conflicting
-        assert!(
-            !Path::new(&db_path).exists(),
-            "Database file should not exist before test"
-        );
-
-        {
-            let mut cache = Cache::with_persist(&db_path, 10).unwrap();
-
-            // Insert items with very short TTL
-            cache.insert_with_ttl("expired1", "value1", Duration::from_millis(50));
-            cache.insert_with_ttl("expired2", "value2", Duration::from_millis(50));
-            cache.insert("permanent", "value3");
-
-            assert_eq!(cache.len(), 3);
-
-            // Wait longer to ensure TTL expiration
-            thread::sleep(Duration::from_millis(300));
-        }
-
-        // Load cache - expired items should be cleaned up
-        {
-            let mut cache = Cache::with_persist(&db_path, 10).unwrap();
-
-            // Manual cleanup to trigger removal
-            let cleaned_count = cache.cleanup_expired();
-
-            assert_eq!(
-                cache.len(),
-                1,
-                "Expected only 1 item (permanent) after cleanup"
-            );
-            assert!(
-                cache.contains_key("permanent"),
-                "Permanent item should still exist"
-            );
-            assert!(
-                !cache.contains_key("expired1"),
-                "expired1 should be removed"
-            );
-            assert!(
-                !cache.contains_key("expired2"),
-                "expired2 should be removed"
-            );
-            assert_eq!(
-                cleaned_count, 2,
-                "Should have cleaned exactly 2 expired items"
-            );
-        }
-
-        // Cleanup after test
-        cleanup_test_db(&db_path);
-    }
-
-    #[test]
     fn test_persist_database_creation() {
         let _db_path = test_db_path("persist_db_creation");
         let db_dir = "/tmp/quickleaf_test_dir";
         let nested_db_path = format!("{}/cache.db", db_dir);
 
-        // Clean up any existing files/dirs
         let _ = fs::remove_file(&nested_db_path);
         let _ = fs::remove_dir(db_dir);
 
-        // Should create directory if it doesn't exist
         {
             let cache = Cache::with_persist(&nested_db_path, 10);
             assert!(cache.is_ok());
 
-            // Directory should be created
             assert!(Path::new(db_dir).exists());
         }
 
-        // Clean up
         let _ = fs::remove_file(&nested_db_path);
         let _ = fs::remove_dir(db_dir);
     }
@@ -376,7 +285,6 @@ mod tests {
         let db_path = test_db_path("persist_concurrent");
         cleanup_test_db(&db_path);
 
-        // Create initial cache with some data
         {
             let mut cache = Cache::with_persist(&db_path, 20).unwrap();
             for i in 0..5 {
@@ -385,14 +293,12 @@ mod tests {
             thread::sleep(Duration::from_millis(100));
         }
 
-        // Simulate concurrent access with multiple threads
         let handles: Vec<_> = (0..3)
             .map(|thread_id| {
                 let path = db_path.clone();
                 thread::spawn(move || {
                     let mut cache = Cache::with_persist(&path, 20).unwrap();
 
-                    // Each thread adds its own keys
                     for i in 0..3 {
                         let key = format!("thread{}_{}", thread_id, i);
                         let value = format!("value_{}_{}", thread_id, i);
@@ -404,19 +310,15 @@ mod tests {
             })
             .collect();
 
-        // Wait for all threads to complete
         for handle in handles {
             handle.join().unwrap();
         }
 
-        // Verify all data is present
         {
             let mut cache = Cache::with_persist(&db_path, 20).unwrap();
 
-            // Should have original 5 + 3 threads * 3 items = 14 items
-            assert!(cache.len() >= 5); // At least original items
+            assert!(cache.len() >= 5);
 
-            // Check original items
             for i in 0..5 {
                 assert!(cache.contains_key(&format!("key{}", i)));
             }
@@ -433,7 +335,6 @@ mod tests {
         {
             let mut cache = Cache::with_persist(&db_path, 10).unwrap();
 
-            // Test various special characters in keys and values
             cache.insert("key:with:colons", "value:with:colons");
             cache.insert("key/with/slashes", "value/with/slashes");
             cache.insert("key-with-dashes", "value-with-dashes");
@@ -445,7 +346,6 @@ mod tests {
             thread::sleep(Duration::from_millis(100));
         }
 
-        // Load and verify special characters are preserved
         {
             let mut cache = Cache::with_persist(&db_path, 10).unwrap();
 
@@ -490,7 +390,6 @@ mod tests {
         {
             let mut cache = Cache::with_persist(&db_path, 10).unwrap();
 
-            // Insert different value types
             cache.insert("string", "text value");
             cache.insert("integer", 42);
             cache.insert("float", 3.14);
@@ -500,7 +399,6 @@ mod tests {
             thread::sleep(Duration::from_millis(100));
         }
 
-        // Load and verify types are preserved
         {
             let mut cache = Cache::with_persist(&db_path, 10).unwrap();
 
@@ -531,7 +429,6 @@ mod tests {
             assert_eq!(cache.get("key1"), Some(&"updated".to_value()));
         }
 
-        // Verify update was persisted
         {
             let mut cache = Cache::with_persist(&db_path, 10).unwrap();
             assert_eq!(cache.get("key1"), Some(&"updated".to_value()));

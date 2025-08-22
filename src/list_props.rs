@@ -66,7 +66,7 @@ impl Default for Order {
 ///     .order(Order::Asc);
 /// let results = cache.list(props).unwrap();
 /// let keys: Vec<_> = results.iter().map(|(k, _)| k.as_str()).collect();
-/// assert_eq!(keys, vec!["cherry"]); // Only entries after "banana"
+/// assert_eq!(keys, vec!["cherry"]);
 /// ```
 #[derive(Debug, Clone)]
 pub enum StartAfter {
@@ -109,7 +109,7 @@ impl Default for StartAfter {
 ///     .filter(Filter::StartWith("ap".to_string()));
 ///
 /// let results = cache.list(props).unwrap();
-/// assert_eq!(results.len(), 2); // apple, apricot
+/// assert_eq!(results.len(), 2);
 /// ```
 ///
 /// ## Pagination
@@ -119,7 +119,7 @@ impl Default for StartAfter {
 /// use quickleaf::Cache;
 /// use quickleaf::valu3::traits::ToValueBehavior;
 ///
-/// let mut cache = Cache::new(20); // Increased capacity to hold all items
+/// let mut cache = Cache::new(20);
 /// for i in 0..20 {
 ///     cache.insert(format!("key_{:02}", i), i);
 /// }
@@ -166,7 +166,7 @@ impl ListProps {
     /// ```
     /// use quickleaf::ListProps;
     ///
-    /// let props = ListProps::default(); // Use default() instead of new()
+    /// let props = ListProps::default();
     /// // Equivalent to creating with default values
     /// ```
     #[allow(dead_code)]
@@ -220,7 +220,7 @@ impl ListProps {
     /// let props = ListProps::default()
     ///     .filter(Filter::StartWith("user_".to_string()));
     /// let results = cache.list(props).unwrap();
-    /// assert_eq!(results.len(), 2); // Only user_ entries
+    /// assert_eq!(results.len(), 2);
     /// ```
     pub fn filter(mut self, filter: Filter) -> Self {
         self.filter = filter;
@@ -243,7 +243,7 @@ impl ListProps {
     /// let props = ListProps::default().order(Order::Desc);
     /// let results = cache.list(props).unwrap();
     /// let keys: Vec<_> = results.iter().map(|(k, _)| k.as_str()).collect();
-    /// assert_eq!(keys, vec!["zebra", "apple"]); // Descending order
+    /// assert_eq!(keys, vec!["zebra", "apple"]);
     /// ```
     pub fn order(mut self, order: Order) -> Self {
         self.order = order;

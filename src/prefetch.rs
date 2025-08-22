@@ -15,7 +15,6 @@ impl Prefetch {
     pub fn read_hint<T>(ptr: *const T) {
         if cfg!(target_arch = "x86_64") || cfg!(target_arch = "x86") {
             unsafe {
-                // PREFETCH_T0 - prefetch to all cache levels
                 #[cfg(target_arch = "x86_64")]
                 core::arch::x86_64::_mm_prefetch(ptr as *const i8, core::arch::x86_64::_MM_HINT_T0);
 
@@ -23,7 +22,6 @@ impl Prefetch {
                 core::arch::x86::_mm_prefetch(ptr as *const i8, core::arch::x86::_MM_HINT_T0);
             }
         }
-        // For other architectures, this becomes a no-op
     }
 
     /// Prefetch multiple sequential memory locations
@@ -33,7 +31,7 @@ impl Prefetch {
     #[inline(always)]
     pub fn sequential_read_hints<T>(start_ptr: *const T, count: usize) {
         if cfg!(target_arch = "x86_64") || cfg!(target_arch = "x86") {
-            let stride = 64; // typical cache line size
+            let stride = 64;
             let elem_size = std::mem::size_of::<T>();
             let total_bytes = count * elem_size;
 
@@ -100,10 +98,8 @@ mod tests {
     fn test_prefetch_hints() {
         let data = vec![1, 2, 3, 4, 5];
 
-        // Test read hint
         Prefetch::read_hint(data.as_ptr());
 
-        // Test sequential hints
         Prefetch::sequential_read_hints(data.as_ptr(), data.len());
     }
 
@@ -112,10 +108,8 @@ mod tests {
         let data = vec![1, 2, 3, 4, 5];
         let ptr = data.as_ptr();
 
-        // Test extension trait methods
         ptr.prefetch_read();
 
-        // Test with references
         let val = 42;
         (&val).prefetch_read();
     }

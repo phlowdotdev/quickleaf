@@ -3,9 +3,8 @@
 //! This module provides an event system that allows you to receive notifications
 //! when cache operations occur, such as insertions, removals, or cache clearing.
 
-use valu3::value::Value;
-
 use crate::cache::Key;
+use valu3::value::Value;
 
 /// Represents different types of cache events.
 ///

@@ -1,17 +1,14 @@
-use indexmap::IndexMap;
-use std::fmt::Debug;
-use std::time::{Duration, SystemTime};
-
-use valu3::traits::ToValueBehavior;
-use valu3::value::Value;
-
 use crate::error::Error;
 use crate::event::Event;
-use crate::fast_filters::apply_filter_fast;
+use crate::filters::apply_filter_fast;
 use crate::list_props::{ListProps, Order, StartAfter};
 use crate::prefetch::{Prefetch, PrefetchExt};
-use crate::string_pool::StringPool;
+use indexmap::IndexMap;
+use std::fmt::Debug;
 use std::sync::mpsc::Sender;
+use std::time::{Duration, SystemTime};
+use valu3::traits::ToValueBehavior;
+use valu3::value::Value;
 
 #[cfg(feature = "persist")]
 use std::path::Path;
@@ -188,8 +185,8 @@ impl PartialEq for CacheItem {
 /// use std::time::Duration;
 ///
 /// let mut cache = Cache::with_default_ttl(10, Duration::from_secs(60));
-/// cache.insert("session", "user_data");  // Will expire in 60 seconds
-/// cache.insert_with_ttl("temp", "data", Duration::from_millis(100));  // Custom TTL
+/// cache.insert("session", "user_data");  
+/// cache.insert_with_ttl("temp", "data", Duration::from_millis(100));  
 ///
 /// assert!(cache.contains_key("session"));
 /// ```
@@ -224,7 +221,6 @@ pub struct Cache {
     capacity: usize,
     default_ttl: Option<Duration>,
     sender: Option<Sender<Event>>,
-    string_pool: StringPool,
     #[cfg(feature = "persist")]
     persist_path: Option<std::path::PathBuf>,
     _phantom: std::marker::PhantomData<Value>,
@@ -256,7 +252,6 @@ impl Cache {
             capacity,
             default_ttl: None,
             sender: None,
-            string_pool: StringPool::new(),
             #[cfg(feature = "persist")]
             persist_path: None,
             _phantom: std::marker::PhantomData,
@@ -287,7 +282,6 @@ impl Cache {
             capacity,
             default_ttl: None,
             sender: Some(sender),
-            string_pool: StringPool::new(),
             #[cfg(feature = "persist")]
             persist_path: None,
             _phantom: std::marker::PhantomData,
@@ -314,7 +308,6 @@ impl Cache {
             capacity,
             default_ttl: Some(default_ttl),
             sender: None,
-            string_pool: StringPool::new(),
             #[cfg(feature = "persist")]
             persist_path: None,
             _phantom: std::marker::PhantomData,
@@ -349,7 +342,6 @@ impl Cache {
             capacity,
             default_ttl: Some(default_ttl),
             sender: Some(sender),
-            string_pool: StringPool::new(),
             #[cfg(feature = "persist")]
             persist_path: None,
             _phantom: std::marker::PhantomData,
@@ -381,21 +373,16 @@ impl Cache {
 
         let path = path.as_ref().to_path_buf();
 
-        // Ensure the database file and directories exist
         ensure_db_file(&path)?;
 
-        // Create channels for event handling
         let (event_tx, event_rx) = channel();
         let (persist_tx, persist_rx) = channel();
 
-        // Spawn the SQLite writer thread
         spawn_writer(path.clone(), persist_rx);
 
-        // Create the cache with event sender
         let mut cache = Self::with_sender(capacity, event_tx);
         cache.persist_path = Some(path.clone());
 
-        // Set up event forwarding to SQLite writer
         std::thread::spawn(move || {
             while let Ok(event) = event_rx.recv() {
                 let persistent_event = PersistentEvent::new(event.clone());
@@ -405,13 +392,11 @@ impl Cache {
             }
         });
 
-        // Load existing data from database
         let mut items = items_from_db(&path)?;
-        // Sort items by key to maintain alphabetical order
+
         items.sort_by(|a, b| a.0.cmp(&b.0));
 
         for (key, item) in items {
-            // Directly insert into the map to avoid triggering events
             if cache.map.len() < capacity {
                 cache.map.insert(key, item);
             }
@@ -460,27 +445,20 @@ impl Cache {
 
         let path = path.as_ref().to_path_buf();
 
-        // Ensure the database file and directories exist
         ensure_db_file(&path)?;
 
-        // Create channels for internal event handling
         let (event_tx, event_rx) = channel();
         let (persist_tx, persist_rx) = channel();
 
-        // Spawn the SQLite writer thread
         spawn_writer(path.clone(), persist_rx);
 
-        // Create the cache with event sender
         let mut cache = Self::with_sender(capacity, event_tx);
         cache.persist_path = Some(path.clone());
 
-        // Set up event forwarding to both SQLite writer and external sender
         std::thread::spawn(move || {
             while let Ok(event) = event_rx.recv() {
-                // Forward to external sender
                 let _ = external_sender.send(event.clone());
 
-                // Forward to SQLite writer
                 let persistent_event = PersistentEvent::new(event);
                 if persist_tx.send(persistent_event).is_err() {
                     break;
@@ -488,13 +466,11 @@ impl Cache {
             }
         });
 
-        // Load existing data from database
         let mut items = items_from_db(&path)?;
-        // Sort items by key to maintain alphabetical order
+
         items.sort_by(|a, b| a.0.cmp(&b.0));
 
         for (key, item) in items {
-            // Directly insert into the map to avoid triggering events
             if cache.map.len() < capacity {
                 cache.map.insert(key, item);
             }
@@ -527,7 +503,7 @@ impl Cache {
     ///     1000,
     ///     Duration::from_secs(3600)
     /// ).unwrap();
-    /// cache.insert("session", "data");  // Will expire in 1 hour and be persisted
+    /// cache.insert("session", "data");  
     /// # }
     /// ```
     #[cfg(feature = "persist")]
@@ -540,21 +516,16 @@ impl Cache {
 
         let path = path.as_ref().to_path_buf();
 
-        // Ensure the database file and directories exist
         ensure_db_file(&path)?;
 
-        // Create channels for event handling
         let (event_tx, event_rx) = channel();
         let (persist_tx, persist_rx) = channel();
 
-        // Spawn the SQLite writer thread
         spawn_writer(path.clone(), persist_rx);
 
-        // Create the cache with event sender and TTL
         let mut cache = Self::with_sender_and_ttl(capacity, event_tx, default_ttl);
         cache.persist_path = Some(path.clone());
 
-        // Set up event forwarding to SQLite writer
         std::thread::spawn(move || {
             while let Ok(event) = event_rx.recv() {
                 let persistent_event = PersistentEvent::new(event.clone());
@@ -564,13 +535,11 @@ impl Cache {
             }
         });
 
-        // Load existing data from database
         let mut items = items_from_db(&path)?;
-        // Sort items by key to maintain alphabetical order
+
         items.sort_by(|a, b| a.0.cmp(&b.0));
 
         for (key, item) in items {
-            // Skip expired items during load
             if !item.is_expired() && cache.map.len() < capacity {
                 cache.map.insert(key, item);
             }
@@ -628,27 +597,20 @@ impl Cache {
 
         let path = path.as_ref().to_path_buf();
 
-        // Ensure the database file and directories exist
         ensure_db_file(&path)?;
 
-        // Create channels for internal event handling
         let (event_tx, event_rx) = channel();
         let (persist_tx, persist_rx) = channel();
 
-        // Spawn the SQLite writer thread
         spawn_writer(path.clone(), persist_rx);
 
-        // Create the cache with event sender and TTL
         let mut cache = Self::with_sender_and_ttl(capacity, event_tx, default_ttl);
         cache.persist_path = Some(path.clone());
 
-        // Set up event forwarding to both SQLite writer and external sender
         std::thread::spawn(move || {
             while let Ok(event) = event_rx.recv() {
-                // Forward to external sender
                 let _ = external_sender.send(event.clone());
 
-                // Forward to SQLite writer
                 let persistent_event = PersistentEvent::new(event);
                 if persist_tx.send(persistent_event).is_err() {
                     break;
@@ -656,13 +618,11 @@ impl Cache {
             }
         });
 
-        // Load existing data from database
         let mut items = items_from_db(&path)?;
-        // Sort items by key to maintain alphabetical order
+
         items.sort_by(|a, b| a.0.cmp(&b.0));
 
         for (key, item) in items {
-            // Skip expired items during load
             if !item.is_expired() && cache.map.len() < capacity {
                 cache.map.insert(key, item);
             }
@@ -719,31 +679,18 @@ impl Cache {
     /// let mut cache = Cache::new(2);
     /// cache.insert("key1", "value1");
     /// cache.insert("key2", "value2");
-    /// cache.insert("key3", "value3");  // This will evict "key1"
+    /// cache.insert("key3", "value3");  
     ///
-    /// assert_eq!(cache.get("key1"), None);  // Evicted
+    /// assert_eq!(cache.get("key1"), None);  
     /// assert_eq!(cache.get("key2"), Some(&"value2".to_value()));
     /// assert_eq!(cache.get("key3"), Some(&"value3".to_value()));
     /// ```
     pub fn insert<T, V>(&mut self, key: T, value: V)
     where
-        T: Into<String> + Clone + AsRef<str>,
+        T: Into<String>,
         V: ToValueBehavior,
     {
-        let key_str = key.as_ref();
-
-        // Use string pool for frequently used keys to reduce allocations
-        let interned_key = if key_str.len() < 50 {
-            // Only intern smaller keys
-            self.string_pool.get_or_intern(key_str).to_string()
-        } else {
-            key.into()
-        };
-
-        // Clean up string pool periodically
-        if self.string_pool.len() > 1000 {
-            self.string_pool.clear_if_large();
-        }
+        let key = key.into();
 
         let item = if let Some(default_ttl) = self.default_ttl {
             CacheItem::with_ttl(value.to_value(), default_ttl)
@@ -751,23 +698,21 @@ impl Cache {
             CacheItem::new(value.to_value())
         };
 
-        if let Some(existing_item) = self.map.get(&interned_key) {
+        if let Some(existing_item) = self.map.get(&key) {
             if existing_item.value == item.value {
                 return;
             }
         }
 
-        // If at capacity, remove the first item (LRU)
-        if self.map.len() >= self.capacity && !self.map.contains_key(&interned_key) {
+        if self.map.len() >= self.capacity && !self.map.contains_key(&key) {
             if let Some((first_key, first_item)) = self.map.shift_remove_index(0) {
                 self.send_remove(first_key, first_item.value);
             }
         }
 
-        // Insert the new item
-        self.map.insert(interned_key.clone(), item.clone());
+        self.map.insert(key.clone(), item.clone());
 
-        self.send_insert(interned_key, item.value);
+        self.send_insert(key, item.value);
     }
 
     /// Inserts a key-value pair with a specific TTL.
@@ -787,7 +732,7 @@ impl Cache {
     ///
     /// assert!(cache.contains_key("session"));
     /// thread::sleep(Duration::from_millis(150));
-    /// assert!(!cache.contains_key("session"));  // Should be expired
+    /// assert!(!cache.contains_key("session"));  
     /// ```
     pub fn insert_with_ttl<T, V>(&mut self, key: T, value: V, ttl: Duration)
     where
@@ -803,19 +748,16 @@ impl Cache {
             }
         }
 
-        // If at capacity, remove the first item (LRU)
         if self.map.len() >= self.capacity && !self.map.contains_key(&key) {
             if let Some((first_key, first_item)) = self.map.shift_remove_index(0) {
                 self.send_remove(first_key, first_item.value);
             }
         }
 
-        // Insert the new item
         self.map.insert(key.clone(), item.clone());
 
         self.send_insert(key.clone(), item.value.clone());
 
-        // Update TTL in SQLite if we have persistence
         #[cfg(feature = "persist")]
         if let Some(persist_path) = &self.persist_path {
             if let Some(ttl_millis) = item.ttl_millis {
@@ -823,7 +765,7 @@ impl Cache {
                     persist_path,
                     &key,
                     &item.value,
-                    ttl_millis / 1000, // Convert millis to seconds for SQLite
+                    ttl_millis / 1000,
                 );
             }
         }
@@ -848,23 +790,11 @@ impl Cache {
     /// ```
     #[inline]
     pub fn get(&mut self, key: &str) -> Option<&Value> {
-        // Use string pool for frequent lookups if key is small
-        let pooled_key = if key.len() <= 50 {
-            Some(self.string_pool.get_or_intern(key))
-        } else {
-            None
-        };
-
-        let lookup_key = pooled_key.as_deref().unwrap_or(key);
-
-        // Prefetch hint for better cache locality
-        if let Some((_, item)) = self.map.get_key_value(lookup_key) {
-            // Prefetch the item data for better memory access
+        if let Some((_, item)) = self.map.get_key_value(key) {
             item.prefetch_read();
         }
 
-        // Check if item exists and whether it's expired
-        let is_expired = match self.map.get(lookup_key) {
+        let is_expired = match self.map.get(key) {
             Some(item) => {
                 if let Some(ttl) = item.ttl_millis {
                     (current_time_millis() - item.created_at) > ttl
@@ -876,14 +806,12 @@ impl Cache {
         };
 
         if is_expired {
-            // Remove expired item
-            if let Some(expired_item) = self.map.swap_remove(lookup_key) {
-                self.send_remove(lookup_key.to_string(), expired_item.value);
+            if let Some(expired_item) = self.map.swap_remove(key) {
+                self.send_remove(key.to_string(), expired_item.value);
             }
             None
         } else {
-            // Return the value - safe because we checked existence above
-            self.map.get(lookup_key).map(|item| &item.value)
+            self.map.get(key).map(|item| &item.value)
         }
     }
 
@@ -901,7 +829,6 @@ impl Cache {
     }
 
     pub fn get_mut(&mut self, key: &str) -> Option<&mut Value> {
-        // Check expiration first to decide if we need to remove
         let should_remove = self.map.get(key).map_or(false, |item| item.is_expired());
 
         if should_remove {
@@ -923,18 +850,8 @@ impl Cache {
     }
 
     pub fn remove(&mut self, key: &str) -> Result<(), Error> {
-        // Use string pool for frequent lookups if key is small
-        let pooled_key = if key.len() <= 50 {
-            Some(self.string_pool.get_or_intern(key))
-        } else {
-            None
-        };
-
-        let lookup_key = pooled_key.as_deref().unwrap_or(key);
-
-        // Use swap_remove for O(1) removal
-        if let Some(item) = self.map.swap_remove(lookup_key) {
-            self.send_remove(lookup_key.to_string(), item.value);
+        if let Some(item) = self.map.swap_remove(key) {
+            self.send_remove(key.to_string(), item.value);
             Ok(())
         } else {
             Err(Error::KeyNotFound)
@@ -943,7 +860,6 @@ impl Cache {
 
     pub fn clear(&mut self) {
         self.map.clear();
-        self.string_pool.clear(); // Also clear string pool
         self.send_clear();
     }
 
@@ -977,7 +893,7 @@ impl Cache {
     /// // Test with TTL
     /// cache.insert_with_ttl("temp", "data", Duration::from_millis(1));
     /// std::thread::sleep(Duration::from_millis(10));
-    /// assert!(!cache.contains_key("temp"));  // Should be expired and removed
+    /// assert!(!cache.contains_key("temp"));  
     /// ```
     pub fn contains_key(&mut self, key: &str) -> bool {
         match self.map.get(key) {
@@ -1011,16 +927,14 @@ impl Cache {
     /// thread::sleep(Duration::from_millis(20));
     ///
     /// let removed = cache.cleanup_expired();
-    /// assert_eq!(removed, 2);  // temp1 and temp2 were removed
-    /// assert_eq!(cache.len(), 1);  // Only permanent remains
+    /// assert_eq!(removed, 2);  
+    /// assert_eq!(cache.len(), 1);  
     /// ```
     pub fn cleanup_expired(&mut self) -> usize {
         let current_time = current_time_millis();
-        let mut expired_keys = Vec::with_capacity(self.map.len() / 4); // Estimate 25% expired
+        let mut expired_keys = Vec::with_capacity(self.map.len() / 4);
 
-        // First pass: collect expired keys (faster than removing during iteration)
         for (key, item) in &self.map {
-            // Prefetch the next item for better sequential access
             item.prefetch_read();
 
             if let Some(ttl) = item.ttl_millis {
@@ -1032,12 +946,10 @@ impl Cache {
 
         let removed_count = expired_keys.len();
 
-        // Prefetch expired keys for batch removal
         if !expired_keys.is_empty() {
             Prefetch::sequential_read_hints(expired_keys.as_ptr(), expired_keys.len());
         }
 
-        // Second pass: batch remove (more efficient than calling remove() which searches again)
         for key in expired_keys {
             if let Some(item) = self.map.swap_remove(&key) {
                 self.send_remove(key, item.value);
@@ -1083,7 +995,7 @@ impl Cache {
     /// let props = ListProps::default()
     ///     .filter(Filter::StartWith("ap".to_string()));
     /// let filtered = cache.list(props).unwrap();
-    /// assert_eq!(filtered.len(), 2);  // apple, apricot
+    /// assert_eq!(filtered.len(), 2);  
     /// ```
     pub fn list<T>(&mut self, props: T) -> Result<Vec<(Key, &Value)>, Error>
     where
@@ -1091,14 +1003,11 @@ impl Cache {
     {
         let props = props.into();
 
-        // Primeiro faz uma limpeza dos itens expirados para evitar retorná-los
         self.cleanup_expired();
 
-        // Get keys and sort them alphabetically for ordered listing
         let mut keys: Vec<String> = self.map.keys().cloned().collect();
         keys.sort();
 
-        // Prefetch hint for sequential access of the keys vector
         if !keys.is_empty() {
             Prefetch::sequential_read_hints(keys.as_ptr(), keys.len());
         }
@@ -1128,12 +1037,10 @@ impl Cache {
 
         for k in list_iter {
             if let Some(item) = self.map.get(k) {
-                // Pula itens expirados (eles serão removidos na próxima limpeza)
                 if item.is_expired() {
                     continue;
                 }
 
-                // Use SIMD-optimized filter for 50-100% performance improvement
                 let filtered = if apply_filter_fast(k, &props.filter) {
                     Some((k.clone(), &item.value))
                 } else {
