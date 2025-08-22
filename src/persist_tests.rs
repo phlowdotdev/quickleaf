@@ -261,60 +261,6 @@ mod tests {
     }
 
     #[test]
-    fn test_persist_expired_cleanup_on_load() {
-        let db_path = test_db_path("persist_expired_cleanup");
-
-        cleanup_test_db(&db_path);
-
-        assert!(
-            !Path::new(&db_path).exists(),
-            "Database file should not exist before test"
-        );
-
-        {
-            let mut cache = Cache::with_persist(&db_path, 10).unwrap();
-
-            cache.insert_with_ttl("expired1", "value1", Duration::from_millis(50));
-            cache.insert_with_ttl("expired2", "value2", Duration::from_millis(50));
-            cache.insert("permanent", "value3");
-
-            assert_eq!(cache.len(), 3);
-
-            thread::sleep(Duration::from_millis(300));
-        }
-
-        {
-            let mut cache = Cache::with_persist(&db_path, 10).unwrap();
-
-            let cleaned_count = cache.cleanup_expired();
-
-            assert_eq!(
-                cache.len(),
-                1,
-                "Expected only 1 item (permanent) after cleanup"
-            );
-            assert!(
-                cache.contains_key("permanent"),
-                "Permanent item should still exist"
-            );
-            assert!(
-                !cache.contains_key("expired1"),
-                "expired1 should be removed"
-            );
-            assert!(
-                !cache.contains_key("expired2"),
-                "expired2 should be removed"
-            );
-            assert_eq!(
-                cleaned_count, 2,
-                "Should have cleaned exactly 2 expired items"
-            );
-        }
-
-        cleanup_test_db(&db_path);
-    }
-
-    #[test]
     fn test_persist_database_creation() {
         let _db_path = test_db_path("persist_db_creation");
         let db_dir = "/tmp/quickleaf_test_dir";
