@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use hashbrown::HashMap;
 use std::sync::Arc;
 
 /// String pool para reutilizar strings e reduzir alocações
