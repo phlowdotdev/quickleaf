@@ -805,7 +805,7 @@ dependencies = [
 
 [[package]]
 name = "quickleaf"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "criterion",
  "crossterm 0.29.0",
