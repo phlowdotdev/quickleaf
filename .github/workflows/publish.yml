@@ -47,6 +47,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   publish:
+    needs: tag
     name: Publish
     runs-on: ubuntu-latest
     steps:
