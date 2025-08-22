@@ -804,7 +804,7 @@ Quickleaf v0.4+ includes advanced performance optimizations that deliver signifi
 
 #### Benchmark Results (v0.4 with Advanced Optimizations)
 
-| Operation | Cache Size | Time | Previous | Improvement | Notes |
+| Operation | Cache Size | Time (v0.4) | Time (v0.3) | Improvement | Notes |
 |-----------|------------|------|----------|-------------|-------|
 | **Get** | 10 | **73.9ns** | 108ns | **32% faster** | SIMD + prefetch optimization |
 | **Get** | 100 | **78.4ns** | 123ns | **36% faster** | Excellent scaling with optimizations |
