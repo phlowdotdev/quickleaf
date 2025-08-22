@@ -9,7 +9,7 @@ mod ttl_tests {
     fn test_cache_item_creation() {
         let item = CacheItem::new(42.to_value());
         assert_eq!(item.value, 42.to_value());
-        assert!(item.ttl.is_none());
+        assert!(item.ttl().is_none());
         assert!(!item.is_expired());
     }
 
@@ -18,7 +18,7 @@ mod ttl_tests {
         let ttl = Duration::from_millis(100);
         let item = CacheItem::with_ttl(42.to_value(), ttl);
         assert_eq!(item.value, 42.to_value());
-        assert_eq!(item.ttl, Some(ttl));
+        assert_eq!(item.ttl(), Some(ttl));
         assert!(!item.is_expired());
         
         // Espera um pouco mais que o TTL

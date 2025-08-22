@@ -811,6 +811,7 @@ dependencies = [
  "crossterm 0.29.0",
  "hashbrown",
  "indexmap",
+ "libc",
  "ratatui",
  "rusqlite",
  "valu3",

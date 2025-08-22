@@ -10,16 +10,54 @@ mod tests {
     use std::path::Path;
     use std::sync::mpsc::channel;
     use std::thread;
-    use std::time::Duration;
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
     // Helper function to create a unique test database path
     fn test_db_path(name: &str) -> String {
-        format!("/tmp/quickleaf_test_{}.db", name)
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let pid = std::process::id();
+        let thread_id = thread::current().id();
+        format!(
+            "/tmp/quickleaf_test_{}_{}_{:?}_{}.db",
+            name, pid, thread_id, timestamp
+        )
     }
 
-    // Helper function to cleanup test database
+    // Helper function to cleanup test database and all related files
     fn cleanup_test_db(path: &str) {
-        let _ = fs::remove_file(path);
+        // List of all possible SQLite file extensions
+        let extensions = ["", "-wal", "-shm", "-journal", ".bak"];
+
+        for ext in extensions {
+            let file_path = format!("{}{}", path, ext);
+            if Path::new(&file_path).exists() {
+                let _ = fs::remove_file(&file_path);
+            }
+        }
+
+        // Also try to remove any temporary files that might exist
+        if let Some(parent) = Path::new(path).parent() {
+            if let Ok(entries) = fs::read_dir(parent) {
+                for entry in entries.flatten() {
+                    let entry_path = entry.path();
+                    if let Some(name) = entry_path.file_name() {
+                        if let Some(name_str) = name.to_str() {
+                            // Remove any temp files that start with our db name
+                            if let Some(base_name) = Path::new(path).file_stem() {
+                                if let Some(base_str) = base_name.to_str() {
+                                    if name_str.starts_with(base_str) && name_str.contains("tmp") {
+                                        let _ = fs::remove_file(&entry_path);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     #[test]
@@ -251,7 +289,15 @@ mod tests {
     #[test]
     fn test_persist_expired_cleanup_on_load() {
         let db_path = test_db_path("persist_expired_cleanup");
+
+        // Cleanup before test to ensure clean state
         cleanup_test_db(&db_path);
+
+        // Ensure the path is truly unique and not conflicting
+        assert!(
+            !Path::new(&db_path).exists(),
+            "Database file should not exist before test"
+        );
 
         {
             let mut cache = Cache::with_persist(&db_path, 10).unwrap();
@@ -261,7 +307,10 @@ mod tests {
             cache.insert_with_ttl("expired2", "value2", Duration::from_millis(50));
             cache.insert("permanent", "value3");
 
-            thread::sleep(Duration::from_millis(200));
+            assert_eq!(cache.len(), 3);
+
+            // Wait longer to ensure TTL expiration
+            thread::sleep(Duration::from_millis(300));
         }
 
         // Load cache - expired items should be cleaned up
@@ -269,14 +318,32 @@ mod tests {
             let mut cache = Cache::with_persist(&db_path, 10).unwrap();
 
             // Manual cleanup to trigger removal
-            cache.cleanup_expired();
+            let cleaned_count = cache.cleanup_expired();
 
-            assert_eq!(cache.len(), 1);
-            assert!(cache.contains_key("permanent"));
-            assert!(!cache.contains_key("expired1"));
-            assert!(!cache.contains_key("expired2"));
+            assert_eq!(
+                cache.len(),
+                1,
+                "Expected only 1 item (permanent) after cleanup"
+            );
+            assert!(
+                cache.contains_key("permanent"),
+                "Permanent item should still exist"
+            );
+            assert!(
+                !cache.contains_key("expired1"),
+                "expired1 should be removed"
+            );
+            assert!(
+                !cache.contains_key("expired2"),
+                "expired2 should be removed"
+            );
+            assert_eq!(
+                cleaned_count, 2,
+                "Should have cleaned exactly 2 expired items"
+            );
         }
 
+        // Cleanup after test
         cleanup_test_db(&db_path);
     }
 

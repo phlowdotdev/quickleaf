@@ -98,15 +98,15 @@ pub(crate) fn items_from_db(
 
         // Deserialize from JSON to preserve value type
         let value = Value::json_to_value(&value_json).unwrap_or_else(|_| value_json.to_value());
-        let created_at = UNIX_EPOCH + Duration::from_secs(created_at_secs as u64);
-        let ttl = ttl_seconds.map(|secs| Duration::from_secs(secs as u64));
+        let created_at = created_at_secs as u64 * 1000; // Convert seconds to milliseconds
+        let ttl_millis = ttl_seconds.map(|secs| secs as u64 * 1000); // Convert to millis
 
         Ok((
             key,
             CacheItem {
                 value,
                 created_at,
-                ttl,
+                ttl_millis,
             },
         ))
     })?;

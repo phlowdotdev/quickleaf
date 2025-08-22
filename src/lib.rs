@@ -347,6 +347,9 @@ mod list_props;
 mod sqlite_store;
 pub mod prelude;
 mod quickleaf;
+mod string_pool;
+mod fast_filters;
+mod prefetch;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

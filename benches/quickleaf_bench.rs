@@ -1,7 +1,44 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use quickleaf::{Cache, Filter, ListProps, Order};
+use std::hint::black_box;
 use std::sync::mpsc::channel;
 use std::time::Duration;
+
+#[cfg(feature = "persist")]
+fn bench_db_path(name: &str) -> String {
+    use std::process;
+    use std::thread;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let pid = process::id();
+    let thread_id = thread::current().id();
+
+    format!(
+        "/tmp/quickleaf_bench_{}_{}_{:?}_{}.db",
+        name, pid, thread_id, timestamp
+    )
+}
+
+#[cfg(feature = "persist")]
+fn cleanup_bench_db(db_path: &str) {
+    use std::fs;
+    use std::path::Path;
+
+    let path = Path::new(db_path);
+    let _ = fs::remove_file(path);
+
+    // Clean up SQLite temporary files
+    let base = path.with_extension("");
+    let base_str = base.to_string_lossy();
+
+    let _ = fs::remove_file(format!("{}.db-wal", base_str));
+    let _ = fs::remove_file(format!("{}.db-shm", base_str));
+    let _ = fs::remove_file(format!("{}.db-journal", base_str));
+}
 
 fn bench_insert(c: &mut Criterion) {
     let mut group = c.benchmark_group("insert");
@@ -341,15 +378,13 @@ fn bench_value_types(c: &mut Criterion) {
 
 #[cfg(feature = "persist")]
 fn bench_persistence(c: &mut Criterion) {
-    use std::fs;
-
     let mut group = c.benchmark_group("persistence");
 
     group.bench_function("persist_insert", |b| {
-        let db_path = "/tmp/bench_persist.db";
-        let _ = fs::remove_file(db_path);
+        let db_path = bench_db_path("persist_insert");
+        cleanup_bench_db(&db_path);
 
-        let mut cache = Cache::with_persist(db_path, 1000).unwrap();
+        let mut cache = Cache::with_persist(&db_path, 1000).unwrap();
         let mut i = 0;
 
         b.iter(|| {
@@ -357,15 +392,15 @@ fn bench_persistence(c: &mut Criterion) {
             i = (i + 1) % 1000;
         });
 
-        let _ = fs::remove_file(db_path);
+        cleanup_bench_db(&db_path);
     });
 
     group.bench_function("persist_with_ttl", |b| {
-        let db_path = "/tmp/bench_persist_ttl.db";
-        let _ = fs::remove_file(db_path);
+        let db_path = bench_db_path("persist_with_ttl");
+        cleanup_bench_db(&db_path);
 
         let mut cache =
-            Cache::with_persist_and_ttl(db_path, 1000, Duration::from_secs(3600)).unwrap();
+            Cache::with_persist_and_ttl(&db_path, 1000, Duration::from_secs(3600)).unwrap();
         let mut i = 0;
 
         b.iter(|| {
@@ -373,16 +408,16 @@ fn bench_persistence(c: &mut Criterion) {
             i = (i + 1) % 1000;
         });
 
-        let _ = fs::remove_file(db_path);
+        cleanup_bench_db(&db_path);
     });
 
     group.bench_function("persist_load", |b| {
-        let db_path = "/tmp/bench_persist_load.db";
-        let _ = fs::remove_file(db_path);
+        let db_path = bench_db_path("persist_load");
+        cleanup_bench_db(&db_path);
 
         // Pre-populate database
         {
-            let mut cache = Cache::with_persist(db_path, 1000).unwrap();
+            let mut cache = Cache::with_persist(&db_path, 1000).unwrap();
             for i in 0..1000 {
                 cache.insert(format!("key{}", i), format!("value{}", i));
             }
@@ -390,10 +425,10 @@ fn bench_persistence(c: &mut Criterion) {
         }
 
         b.iter(|| {
-            black_box(Cache::with_persist(db_path, 1000).unwrap());
+            black_box(Cache::with_persist(&db_path, 1000).unwrap());
         });
 
-        let _ = fs::remove_file(db_path);
+        cleanup_bench_db(&db_path);
     });
 
     group.finish();
