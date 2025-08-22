@@ -333,7 +333,6 @@ mod list_props;
 #[cfg(test)]
 #[cfg(feature = "persist")]
 mod persist_tests;
-mod prefetch;
 pub mod prelude;
 mod quickleaf;
 #[cfg(feature = "persist")]

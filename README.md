@@ -9,7 +9,7 @@ Quickleaf Cache is a **fast**, **lightweight**, and **feature-rich** in-memory c
 ## ✨ Features
 
 - 🚀 **High Performance**: O(1) access with ordered key iteration
-- ⚡ **Advanced Optimizations**: Optimized string filters and memory prefetch hints
+- ⚡ **Advanced Optimizations**: Optimized string filters and memory layout
 - 📈 **Performance Gains**: Up to 48% faster operations compared to standard implementations
 - ⏰ **TTL Support**: Automatic expiration with lazy cleanup
 - 🔍 **Advanced Filtering**: StartWith, EndWith, and complex pattern matching with optimized algorithms
@@ -484,7 +484,6 @@ Quickleaf includes cutting-edge performance optimizations that deliver significa
 Quickleaf v0.4+ includes advanced performance optimizations that deliver significant speed improvements:
 
 - **Optimized String Filters**: Fast prefix and suffix matching algorithms
-- **Memory Prefetch**: CPU cache optimization hints  
 - **Efficient Data Structures**: IndexMap for better memory layout
 - **TTL Optimization**: Cached timestamps and lazy cleanup
 
@@ -513,17 +512,6 @@ These optimizations are **transparent** to the API - all existing code continues
 let results = cache.list(
     ListProps::default()
 );
-```
-
-#### 🎯 **Memory Prefetch Hints**
-- **Cache Line Optimization**: Provides hints to CPU about upcoming memory accesses
-- **Sequential Access Patterns**: Optimized for list operations and iteration
-- **Reduced Latency**: Minimizes memory access delays through predictive loading
-- **Intelligent Prefetching**: Only prefetches when beneficial (64-byte cache line alignment)
-
-```rust
-// Prefetch hints are automatically applied during operations
-let items = cache.list(ListProps::default());  // Prefetch optimized
 ```
 
 #### 📊 **TTL Timestamp Caching**
@@ -569,7 +557,6 @@ cache.insert_with_ttl("session", "data", Duration::from_secs(300));
 | Feature | Primary Benefit | Performance Gain | Use Case |
 |---------|----------------|------------------|----------|
 | **Optimized Filters** | Algorithm efficiency | 10-15% faster filtering | Large dataset operations |
-| **Prefetch Hints** | Cache locality | 5-10% faster access | Sequential operations |
 | **TTL Caching** | Syscall reduction | 25-30% faster TTL ops | Time-sensitive applications |
 | **IndexMap** | Memory layout | 5-8% faster iteration | Frequent list operations |
 
@@ -691,7 +678,7 @@ test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 - ✅ **Event System**: Real-time notifications and event handling
 - ✅ **LRU Eviction**: Capacity management and least-recently-used removal
 - ✅ **Persistence**: SQLite integration, crash recovery, TTL preservation
-- ✅ **Performance Features**: Optimized filters, prefetch hints, optimization validation
+- ✅ **Performance Features**: Optimized filters and optimization validation
 - ✅ **Concurrency**: Thread safety, parallel test execution
 - ✅ **Edge Cases**: Error handling, boundary conditions, memory management
 - ✅ **Cross-Platform**: Linux, Windows, macOS compatibility
@@ -716,7 +703,6 @@ cargo bench
 
 # Test specific optimization features
 cargo test fast_filters
-cargo test prefetch
 ```
 
 All tests are designed to run reliably in parallel environments with proper isolation to prevent interference between test executions.
@@ -728,7 +714,6 @@ All tests are designed to run reliably in parallel environments with proper isol
 Quickleaf v0.4+ includes advanced performance optimizations that deliver significant speed improvements:
 
 - **Optimized String Filters**: Fast prefix and suffix matching algorithms
-- **Memory Prefetch**: CPU cache optimization hints
 - **Efficient Data Structures**: IndexMap for better memory layout
 - **TTL Optimization**: Cached timestamps and lazy cleanup
 
@@ -738,10 +723,10 @@ Quickleaf v0.4+ includes advanced performance optimizations that deliver signifi
 
 | Operation | Time Complexity | Optimized Performance | Notes |
 |-----------|----------------|-----------------------|-------|
-| Insert | O(log n) | **Up to 48% faster** | Memory optimization + prefetch + IndexMap |
-| Get | O(1) | **25-36% faster** | Optimized filters + memory optimization + prefetch |
+| Insert | O(log n) | **Up to 48% faster** | Memory optimization + IndexMap |
+| Get | O(1) | **25-36% faster** | Optimized filters + memory optimization |
 | Remove | O(n) | **~5% faster** | Optimized memory layout |
-| List | O(n) | **3-6% faster** | Optimized filters + prefetch hints |
+| List | O(n) | **3-6% faster** | Optimized filters |
 | TTL Check | O(1) | **Minimal overhead** | Cached timestamps |
 | Contains Key | O(1) | **1-6% faster** | IndexMap + memory layout benefits |
 
@@ -877,4 +862,4 @@ This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENS
 
 **Made with ❤️ by the [phlow.dev](https://phlow.dev) team**
 
-*Quickleaf v0.4+ features advanced performance optimizations including optimized string filters, memory prefetch hints, and TTL optimization - delivering up to 48% performance improvements while maintaining full API compatibility.*
+*Quickleaf v0.4+ features advanced performance optimizations including optimized string filters and TTL optimization - delivering up to 48% performance improvements while maintaining full API compatibility.*
