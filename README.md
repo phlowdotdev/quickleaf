@@ -804,36 +804,27 @@ Quickleaf v0.4+ includes advanced performance optimizations that deliver signifi
 
 #### Benchmark Results (v0.4 with Advanced Optimizations)
 
-| Operation | Cache Size | Time | Previous | Improvement | Notes |
+| Operation | Cache Size | Time (v0.4) | Time (v0.3) | Notes |
 |-----------|------------|------|----------|-------------|-------|
-| **Get** | 10 | **73.9ns** | 108ns | **32% faster** | SIMD + prefetch optimization |
-| **Get** | 100 | **78.4ns** | 123ns | **36% faster** | Excellent scaling with optimizations |
-| **Get** | 1,000 | **79.7ns** | 107ns | **25% faster** | Consistent sub-80ns performance |
-| **Get** | 10,000 | **106.7ns** | 109ns | **2% faster** | Maintains performance at scale |
-| **Insert** | 10 | **203.4ns** | 302ns | **33% faster** | String pooling benefits |
-| **Insert** | 100 | **230.6ns** | 350ns | **34% faster** | Memory optimization impact |
-| **Insert** | 1,000 | **234.1ns** | 378ns | **38% faster** | Significant improvement |
-| **Insert** | 10,000 | **292.3ns** | 566ns | **48% faster** | Dramatic performance gain |
-| **Contains Key** | 10 | **33.6ns** | 35ns | **4% faster** | IndexMap benefits |
-| **Contains Key** | 100 | **34.9ns** | 37ns | **6% faster** | Consistent improvement |
-| **Contains Key** | 1,000 | **36.8ns** | 37ns | **1% faster** | Maintained performance |
-| **Contains Key** | 10,000 | **47.4ns** | 49ns | **3% faster** | Scaling improvement |
-| **List (no filter)** | 1,000 items | **28.6µs** | 30.4µs | **6% faster** | SIMD + memory optimization |
-| **List (prefix filter)** | 1,000 items | **28.0µs** | 29.1µs | **4% faster** | SIMD prefix matching |
-| **List (suffix filter)** | 1,000 items | **41.1µs** | 42.2µs | **3% faster** | SIMD suffix optimization |
-| **LRU Eviction** | 100 capacity | **609ns** | 613ns | **1% faster** | Memory layout benefits |
-| **Insert with TTL** | Any | **97.6ns** | 98ns | **0.4% faster** | Timestamp caching |
-| **Cleanup Expired** | 500 items | **339ns** | 338ns | **Similar** | Optimized batch processing |
-| **Get (TTL check)** | Any | **73.9ns** | 71ns | **Similar** | Efficient TTL validation |
-
-#### Key Performance Insights
-
-1. **Exceptional Insert Performance**: Up to **48% faster** insert operations with the most dramatic improvements on large datasets (10,000 items)
-2. **Consistent Get Operations**: **25-36% faster** across most cache sizes, with excellent scaling characteristics
-3. **SIMD Filter Benefits**: **3-6% improvements** in list operations with vectorized pattern matching
-4. **Memory Efficiency**: String pooling and memory layout optimizations provide measurable gains
-5. **Scalable Architecture**: Performance improvements are most pronounced with larger datasets
-6. **Sub-100ns Operations**: Most core operations (get, contains_key, insert) complete in under 100 nanoseconds
+| **Get** | 10 | **73.9ns** | 108ns |  SIMD + prefetch optimization |
+| **Get** | 100 | **78.4ns** | 123ns |  Excellent scaling with optimizations |
+| **Get** | 1,000 | **79.7ns** | 107ns |  Consistent sub-80ns performance |
+| **Get** | 10,000 | **106.7ns** | 109ns  Maintains performance at scale |
+| **Insert** | 10 | **203.4ns** | 302ns |  String pooling benefits |
+| **Insert** | 100 | **230.6ns** | 350ns | Memory optimization impact |
+| **Insert** | 1,000 | **234.1ns** | 378ns |  Significant improvement |
+| **Insert** | 10,000 | **292.3ns** | 566ns |  Dramatic performance gain |
+| **Contains Key** | 10 | **33.6ns** | 35ns |  IndexMap benefits |
+| **Contains Key** | 100 | **34.9ns** | 37ns |  Consistent improvement |
+| **Contains Key** | 1,000 | **36.8ns** | 37ns |  Maintained performance |
+| **Contains Key** | 10,000 | **47.4ns** | 49ns |  Scaling improvement |
+| **List (no filter)** | 1,000 items | **28.6µs** | 30.4µs |  SIMD + memory optimization |
+| **List (prefix filter)** | 1,000 items | **28.0µs** | 29.1µs |  SIMD prefix matching |
+| **List (suffix filter)** | 1,000 items | **41.1µs** | 42.2µs |  SIMD suffix optimization |
+| **LRU Eviction** | 100 capacity | **609ns** | 613ns |  Memory layout benefits |
+| **Insert with TTL** | Any | **97.6ns** | 98ns |  Timestamp caching |
+| **Cleanup Expired** | 500 items | **339ns** | 338ns |  Optimized batch processing |
+| **Get (TTL check)** | Any | **73.9ns** | 71ns | Efficient TTL validation |
 
 **Real-World Impact**: The optimizations deliver the most significant benefits in production workloads with:
 - Large cache sizes (1,000+ items)
