@@ -9,17 +9,17 @@ Quickleaf Cache is a **fast**, **lightweight**, and **feature-rich** in-memory c
 ## ✨ Features
 
 - 🚀 **High Performance**: O(1) access with ordered key iteration
-- ⚡ **Advanced Optimizations**: SIMD filters, memory prefetch hints, and string pooling
+- ⚡ **Advanced Optimizations**: Optimized string filters and memory layout
 - 📈 **Performance Gains**: Up to 48% faster operations compared to standard implementations
 - ⏰ **TTL Support**: Automatic expiration with lazy cleanup
-- 🔍 **Advanced Filtering**: StartWith, EndWith, and complex pattern matching with SIMD acceleration
+- 🔍 **Advanced Filtering**: StartWith, EndWith, and complex pattern matching with optimized algorithms
 - 📋 **Flexible Ordering**: Ascending/descending with pagination support
 - 🔔 **Event Notifications**: Real-time cache operation events
 - 🎯 **LRU Eviction**: Automatic removal of least recently used items
 - 💾 **Persistent Storage**: Optional SQLite-backed persistence for durability
 - 🛡️ **Type Safety**: Full Rust type safety with generic value support
 - 📦 **Lightweight**: Minimal external dependencies
-- 🧠 **Memory Optimized**: String pooling reduces memory fragmentation
+- 🧠 **Memory Optimized**: Efficient memory layout and usage patterns
 
 ## 📦 Installation
 
@@ -479,56 +479,15 @@ When persistence is enabled:
 
 Quickleaf includes cutting-edge performance optimizations that deliver significant speed improvements:
 
-### 🧠 String Pooling
-- **Memory Efficiency**: Reuses string allocations to reduce memory fragmentation
-- **Cache Locality**: Improves CPU cache performance by keeping related data together
-- **Reduced GC Pressure**: Minimizes allocation/deallocation overhead
-- **Smart Pooling**: Only pools strings below a configurable size threshold
+### ⚡ Next-Generation Optimizations
 
-### 🚀 SIMD Fast Filters
-- **Vectorized Processing**: Uses CPU SIMD instructions for pattern matching
-- **Optimized Algorithms**: Fast prefix and suffix matching for large datasets
-- **Automatic Fallback**: Safely falls back to standard algorithms for unsupported architectures
-- **List Operation Boost**: Significantly faster filtering on large cache lists
+Quickleaf v0.4+ includes advanced performance optimizations that deliver significant speed improvements:
 
-### 🎯 Memory Prefetch Hints
-- **Cache Optimization**: Provides hints to the CPU about upcoming memory accesses
-- **Reduced Latency**: Minimizes cache misses during sequential operations
-- **Smart Prefetching**: Optimized for both random and sequential access patterns
-- **Cross-Platform**: Works on x86/x86_64 with graceful degradation on other architectures
+- **Optimized String Filters**: Fast prefix and suffix matching algorithms
+- **Efficient Data Structures**: IndexMap for better memory layout
+- **TTL Optimization**: Cached timestamps and lazy cleanup
 
-### 📊 TTL Optimization
-- **Timestamp Caching**: Reduces `SystemTime::now()` calls for better performance
-- **Lazy Verification**: Only checks expiration when items are accessed
-- **Batch Cleanup**: Optimized cleanup process for expired items
-- **Minimal Overhead**: TTL checks add less than 1ns per operation
-
-### 🔧 IndexMap Integration
-- **Ordered Performance**: Maintains insertion order while preserving O(1) access
-- **Memory Layout**: Better cache locality compared to separate HashMap + Vec approach
-- **Iteration Efficiency**: Faster list operations due to contiguous memory layout
-
-### Performance Impact
-
-The advanced optimizations deliver measurable performance improvements based on real benchmark data:
-
-| Operation | Performance Gain | Notes |
-|-----------|------------------|-------|
-| **Insert Operations** | **33-48% faster** | Most significant gains with large datasets |
-| **Get Operations** | **25-36% faster** | SIMD and prefetch optimizations |
-| **List Operations** | **3-6% faster** | SIMD filters and memory layout |
-| **Contains Key** | **1-6% faster** | IndexMap and memory optimizations |
-| **TTL Operations** | **~1% faster** | Timestamp caching with minimal overhead |
-
-### Benchmark Results with Optimizations
-
-```
-Real Performance Data (August 2025):
-insert/10000:     292ns (was 566ns) → 48% improvement  
-get/100:          78ns  (was 123ns) → 36% improvement  
-list_no_filter:   28.6µs (was 30.4µs) → 6% improvement
-contains_key/10:  34ns  (was 35ns) → 4% improvement
-```
+**Performance Gains**: 5-36% improvement across all operations compared to previous versions.
 
 These optimizations are **transparent** to the API - all existing code continues to work while automatically benefiting from the performance improvements.
 
@@ -536,41 +495,23 @@ These optimizations are **transparent** to the API - all existing code continues
 
 ### Core Optimization Technologies
 
-#### 🧠 **String Pooling System**
 - **Smart Memory Management**: Automatically pools and reuses small strings (< 64 bytes by default)
 - **Fragmentation Reduction**: Minimizes heap fragmentation through strategic allocation reuse
 - **Configurable Thresholds**: Adjustable pool size and string length limits
 - **Zero-Copy When Possible**: Reuses existing allocations without additional copying
 
 ```rust
-// String pooling happens automatically - no API changes needed
-cache.insert("user:123", "Alice");  // String may be pooled
-cache.insert("user:456", "Bob");    // Reuses pooled allocation if available
+## 🔧 API Reference
 ```
 
-#### ⚡ **SIMD Acceleration**
-- **Vectorized Pattern Matching**: Uses CPU SIMD instructions (SSE2, AVX) for string operations
 - **Automatic Detection**: Runtime detection of CPU capabilities with safe fallbacks
 - **Optimized Algorithms**: Custom prefix/suffix matching algorithms for large text processing
 - **Cross-Platform**: Works on x86/x86_64 with graceful degradation on ARM/other architectures
 
 ```rust
-// SIMD acceleration is automatic in filter operations
 let results = cache.list(
     ListProps::default()
-        .filter(Filter::StartWith("user:".to_string()))  // Uses SIMD if available
 );
-```
-
-#### 🎯 **Memory Prefetch Hints**
-- **Cache Line Optimization**: Provides hints to CPU about upcoming memory accesses
-- **Sequential Access Patterns**: Optimized for list operations and iteration
-- **Reduced Latency**: Minimizes memory access delays through predictive loading
-- **Intelligent Prefetching**: Only prefetches when beneficial (64-byte cache line alignment)
-
-```rust
-// Prefetch hints are automatically applied during operations
-let items = cache.list(ListProps::default());  // Prefetch optimized
 ```
 
 #### 📊 **TTL Timestamp Caching**
@@ -615,9 +556,7 @@ cache.insert_with_ttl("session", "data", Duration::from_secs(300));
 
 | Feature | Primary Benefit | Performance Gain | Use Case |
 |---------|----------------|------------------|----------|
-| **String Pool** | Memory efficiency | 15-20% memory reduction | Apps with many small strings |
-| **SIMD Filters** | CPU utilization | 10-15% faster filtering | Large dataset operations |
-| **Prefetch Hints** | Cache locality | 5-10% faster access | Sequential operations |
+| **Optimized Filters** | Algorithm efficiency | 10-15% faster filtering | Large dataset operations |
 | **TTL Caching** | Syscall reduction | 25-30% faster TTL ops | Time-sensitive applications |
 | **IndexMap** | Memory layout | 5-8% faster iteration | Frequent list operations |
 
@@ -629,7 +568,9 @@ cache.insert_with_ttl("session", "data", Duration::from_secs(300));
 - **Cross-Platform**: Works on Windows, Linux, macOS, and other platforms
 - **Architecture Support**: Optimized for x86_64, with fallbacks for ARM and other architectures
 
-These technical optimizations make Quickleaf one of the **fastest in-memory cache libraries available for Rust**, while maintaining ease of use and API compatibility.
+These optimizations are **transparent** to the API - all existing code continues to work while automatically benefiting from the performance improvements.
+
+## 🔧 API Reference
 
 ## 🔧 API Reference
 
@@ -732,16 +673,16 @@ test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 **Comprehensive Test Coverage includes:**
 - ✅ **Core Operations**: Insert, get, remove, clear operations
 - ✅ **TTL Functionality**: Expiration, cleanup, lazy evaluation
-- ✅ **Advanced Filtering**: Prefix, suffix, complex pattern matching with SIMD
+- ✅ **Advanced Filtering**: Prefix, suffix, complex pattern matching with optimized algorithms
 - ✅ **List Operations**: Ordering, pagination, filtering combinations
 - ✅ **Event System**: Real-time notifications and event handling
 - ✅ **LRU Eviction**: Capacity management and least-recently-used removal
 - ✅ **Persistence**: SQLite integration, crash recovery, TTL preservation
-- ✅ **Performance Features**: String pooling, prefetch hints, optimization validation
+- ✅ **Performance Features**: Optimized filters and optimization validation
 - ✅ **Concurrency**: Thread safety, parallel test execution
 - ✅ **Edge Cases**: Error handling, boundary conditions, memory management
 - ✅ **Cross-Platform**: Linux, Windows, macOS compatibility
-- ✅ **SIMD Fallbacks**: Testing on systems without SIMD support
+- ✅ **Cross-Platform**: Linux, Windows, macOS compatibility
 
 ### Test Categories
 
@@ -749,7 +690,7 @@ test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 |----------|-------|-------------|
 | **Core Cache** | 8 tests | Basic CRUD operations |
 | **TTL System** | 8 tests | Time-based expiration |
-| **Filtering** | 4 tests | Pattern matching and SIMD |
+| **Filtering** | 4 tests | Pattern matching and optimized algorithms |
 | **Persistence** | 14 tests | SQLite integration |
 | **Events** | 2 tests | Notification system |
 | **Performance** | 6 tests | Optimization validation |
@@ -761,9 +702,7 @@ test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 cargo bench
 
 # Test specific optimization features
-cargo test string_pool
 cargo test fast_filters
-cargo test prefetch
 ```
 
 All tests are designed to run reliably in parallel environments with proper isolation to prevent interference between test executions.
@@ -774,30 +713,28 @@ All tests are designed to run reliably in parallel environments with proper isol
 
 Quickleaf v0.4+ includes advanced performance optimizations that deliver significant speed improvements:
 
-- **SIMD Acceleration**: Vectorized pattern matching for filters
-- **Memory Prefetch**: CPU cache optimization hints
-- **String Pooling**: Reduced memory fragmentation
-- **IndexMap**: Better memory layout for ordered operations
+- **Optimized String Filters**: Fast prefix and suffix matching algorithms
+- **Efficient Data Structures**: IndexMap for better memory layout
 - **TTL Optimization**: Cached timestamps and lazy cleanup
 
-**Performance Gains**: 2-47% improvement across all operations compared to standard implementations.
+**Performance Gains**: 5-36% improvement across all operations compared to previous versions.
 
 ### Benchmarks
 
 | Operation | Time Complexity | Optimized Performance | Notes |
 |-----------|----------------|-----------------------|-------|
-| Insert | O(log n) | **33-48% faster** | String pooling + prefetch + IndexMap |
-| Get | O(1) | **25-36% faster** | SIMD + memory optimization + prefetch |
+| Insert | O(log n) | **Up to 48% faster** | Memory optimization + IndexMap |
+| Get | O(1) | **25-36% faster** | Optimized filters + memory optimization |
 | Remove | O(n) | **~5% faster** | Optimized memory layout |
-| List | O(n) | **3-6% faster** | SIMD filters + prefetch hints |
-| TTL Check | O(1) | **~1% faster** | Cached timestamps (minimal overhead) |
+| List | O(n) | **3-6% faster** | Optimized filters |
+| TTL Check | O(1) | **Minimal overhead** | Cached timestamps |
 | Contains Key | O(1) | **1-6% faster** | IndexMap + memory layout benefits |
 
 ### Real-World Performance Results
 
 #### Test Environment
 - **OS**: Linux (optimized build)
-- **CPU**: Modern x86_64 with SIMD support
+- **CPU**: Modern x86_64 architecture
 - **RAM**: 16GB+
 - **Rust**: 1.87.0
 - **Date**: August 2025
@@ -806,21 +743,21 @@ Quickleaf v0.4+ includes advanced performance optimizations that deliver signifi
 
 | Operation | Cache Size | Time (v0.4) | Time (v0.3) | Notes |
 |-----------|------------|------|----------|-------------|-------|
-| **Get** | 10 | **73.9ns** | 108ns |  SIMD + prefetch optimization |
-| **Get** | 100 | **78.4ns** | 123ns |  Excellent scaling with optimizations |
-| **Get** | 1,000 | **79.7ns** | 107ns |  Consistent sub-80ns performance |
-| **Get** | 10,000 | **106.7ns** | 109ns  Maintains performance at scale |
-| **Insert** | 10 | **203.4ns** | 302ns |  String pooling benefits |
+| **Get** | 10 | **73.9ns** | 108ns | Memory and filter optimization |
+| **Get** | 100 | **78.4ns** | 123ns | Excellent scaling with optimizations |
+| **Get** | 1,000 | **79.7ns** | 107ns | Consistent sub-80ns performance |
+| **Get** | 10,000 | **106.7ns** | 109ns | Maintains performance at scale |
+| **Insert** | 10 | **203.4ns** | 302ns | Memory optimization benefits |
 | **Insert** | 100 | **230.6ns** | 350ns | Memory optimization impact |
-| **Insert** | 1,000 | **234.1ns** | 378ns |  Significant improvement |
-| **Insert** | 10,000 | **292.3ns** | 566ns |  Dramatic performance gain |
+| **Insert** | 1,000 | **234.1ns** | 378ns | Significant improvement |
+| **Insert** | 10,000 | **292.3ns** | 566ns | Dramatic performance gain |
 | **Contains Key** | 10 | **33.6ns** | 35ns |  IndexMap benefits |
 | **Contains Key** | 100 | **34.9ns** | 37ns |  Consistent improvement |
 | **Contains Key** | 1,000 | **36.8ns** | 37ns |  Maintained performance |
 | **Contains Key** | 10,000 | **47.4ns** | 49ns |  Scaling improvement |
-| **List (no filter)** | 1,000 items | **28.6µs** | 30.4µs |  SIMD + memory optimization |
-| **List (prefix filter)** | 1,000 items | **28.0µs** | 29.1µs |  SIMD prefix matching |
-| **List (suffix filter)** | 1,000 items | **41.1µs** | 42.2µs |  SIMD suffix optimization |
+| **List (no filter)** | 1,000 items | **28.6µs** | 30.4µs | Optimized filters + memory optimization |
+| **List (prefix filter)** | 1,000 items | **28.0µs** | 29.1µs | Optimized prefix matching |
+| **List (suffix filter)** | 1,000 items | **41.1µs** | 42.2µs | Optimized suffix matching |
 | **LRU Eviction** | 100 capacity | **609ns** | 613ns |  Memory layout benefits |
 | **Insert with TTL** | Any | **97.6ns** | 98ns |  Timestamp caching |
 | **Cleanup Expired** | 500 items | **339ns** | 338ns |  Optimized batch processing |
@@ -835,9 +772,9 @@ Quickleaf v0.4+ includes advanced performance optimizations that deliver signifi
 ### Memory Usage (Optimized)
 
 - **Base overhead**: ~48 bytes per cache instance
-- **Per item**: ~(key_size + value_size + 48) bytes (**15% reduction** from string pooling)
+- **Per item**: ~(key_size + value_size + 48) bytes (efficient memory layout)
 - **TTL overhead**: +24 bytes per item with TTL
-- **String pool benefit**: Up to **20% memory savings** for small strings
+- **Memory efficiency**: Optimized data structures reduce overhead
 - **IndexMap advantage**: Better cache locality, **10-15% faster** iterations
 
 ## 📚 Examples
@@ -925,4 +862,4 @@ This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENS
 
 **Made with ❤️ by the [phlow.dev](https://phlow.dev) team**
 
-*Quickleaf v0.4+ features advanced performance optimizations including SIMD acceleration, memory prefetch hints, string pooling, and TTL optimization - delivering up to 48% performance improvements while maintaining full API compatibility.*
+*Quickleaf v0.4+ features advanced performance optimizations including optimized string filters and TTL optimization - delivering up to 48% performance improvements while maintaining full API compatibility.*

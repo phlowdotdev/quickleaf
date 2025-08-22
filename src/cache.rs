@@ -2,7 +2,6 @@ use crate::error::Error;
 use crate::event::Event;
 use crate::filters::apply_filter_fast;
 use crate::list_props::{ListProps, Order, StartAfter};
-use crate::prefetch::{Prefetch, PrefetchExt};
 use indexmap::IndexMap;
 use std::fmt::Debug;
 use std::sync::mpsc::Sender;
@@ -790,10 +789,6 @@ impl Cache {
     /// ```
     #[inline]
     pub fn get(&mut self, key: &str) -> Option<&Value> {
-        if let Some((_, item)) = self.map.get_key_value(key) {
-            item.prefetch_read();
-        }
-
         let is_expired = match self.map.get(key) {
             Some(item) => {
                 if let Some(ttl) = item.ttl_millis {
@@ -935,8 +930,6 @@ impl Cache {
         let mut expired_keys = Vec::with_capacity(self.map.len() / 4);
 
         for (key, item) in &self.map {
-            item.prefetch_read();
-
             if let Some(ttl) = item.ttl_millis {
                 if (current_time - item.created_at) > ttl {
                     expired_keys.push(key.clone());
@@ -945,10 +938,6 @@ impl Cache {
         }
 
         let removed_count = expired_keys.len();
-
-        if !expired_keys.is_empty() {
-            Prefetch::sequential_read_hints(expired_keys.as_ptr(), expired_keys.len());
-        }
 
         for key in expired_keys {
             if let Some(item) = self.map.swap_remove(&key) {
@@ -1007,10 +996,6 @@ impl Cache {
 
         let mut keys: Vec<String> = self.map.keys().cloned().collect();
         keys.sort();
-
-        if !keys.is_empty() {
-            Prefetch::sequential_read_hints(keys.as_ptr(), keys.len());
-        }
 
         match props.order {
             Order::Asc => self.resolve_order(keys.iter(), props),
