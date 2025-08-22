@@ -381,21 +381,16 @@ impl Cache {
 
         let path = path.as_ref().to_path_buf();
 
-        
         ensure_db_file(&path)?;
 
-        
         let (event_tx, event_rx) = channel();
         let (persist_tx, persist_rx) = channel();
 
-        
         spawn_writer(path.clone(), persist_rx);
 
-        
         let mut cache = Self::with_sender(capacity, event_tx);
         cache.persist_path = Some(path.clone());
 
-        
         std::thread::spawn(move || {
             while let Ok(event) = event_rx.recv() {
                 let persistent_event = PersistentEvent::new(event.clone());
@@ -405,13 +400,11 @@ impl Cache {
             }
         });
 
-        
         let mut items = items_from_db(&path)?;
-        
+
         items.sort_by(|a, b| a.0.cmp(&b.0));
 
         for (key, item) in items {
-            
             if cache.map.len() < capacity {
                 cache.map.insert(key, item);
             }
@@ -460,27 +453,20 @@ impl Cache {
 
         let path = path.as_ref().to_path_buf();
 
-        
         ensure_db_file(&path)?;
 
-        
         let (event_tx, event_rx) = channel();
         let (persist_tx, persist_rx) = channel();
 
-        
         spawn_writer(path.clone(), persist_rx);
 
-        
         let mut cache = Self::with_sender(capacity, event_tx);
         cache.persist_path = Some(path.clone());
 
-        
         std::thread::spawn(move || {
             while let Ok(event) = event_rx.recv() {
-                
                 let _ = external_sender.send(event.clone());
 
-                
                 let persistent_event = PersistentEvent::new(event);
                 if persist_tx.send(persistent_event).is_err() {
                     break;
@@ -488,13 +474,11 @@ impl Cache {
             }
         });
 
-        
         let mut items = items_from_db(&path)?;
-        
+
         items.sort_by(|a, b| a.0.cmp(&b.0));
 
         for (key, item) in items {
-            
             if cache.map.len() < capacity {
                 cache.map.insert(key, item);
             }
@@ -540,21 +524,16 @@ impl Cache {
 
         let path = path.as_ref().to_path_buf();
 
-        
         ensure_db_file(&path)?;
 
-        
         let (event_tx, event_rx) = channel();
         let (persist_tx, persist_rx) = channel();
 
-        
         spawn_writer(path.clone(), persist_rx);
 
-        
         let mut cache = Self::with_sender_and_ttl(capacity, event_tx, default_ttl);
         cache.persist_path = Some(path.clone());
 
-        
         std::thread::spawn(move || {
             while let Ok(event) = event_rx.recv() {
                 let persistent_event = PersistentEvent::new(event.clone());
@@ -564,13 +543,11 @@ impl Cache {
             }
         });
 
-        
         let mut items = items_from_db(&path)?;
-        
+
         items.sort_by(|a, b| a.0.cmp(&b.0));
 
         for (key, item) in items {
-            
             if !item.is_expired() && cache.map.len() < capacity {
                 cache.map.insert(key, item);
             }
@@ -628,27 +605,20 @@ impl Cache {
 
         let path = path.as_ref().to_path_buf();
 
-        
         ensure_db_file(&path)?;
 
-        
         let (event_tx, event_rx) = channel();
         let (persist_tx, persist_rx) = channel();
 
-        
         spawn_writer(path.clone(), persist_rx);
 
-        
         let mut cache = Self::with_sender_and_ttl(capacity, event_tx, default_ttl);
         cache.persist_path = Some(path.clone());
 
-        
         std::thread::spawn(move || {
             while let Ok(event) = event_rx.recv() {
-                
                 let _ = external_sender.send(event.clone());
 
-                
                 let persistent_event = PersistentEvent::new(event);
                 if persist_tx.send(persistent_event).is_err() {
                     break;
@@ -656,13 +626,11 @@ impl Cache {
             }
         });
 
-        
         let mut items = items_from_db(&path)?;
-        
+
         items.sort_by(|a, b| a.0.cmp(&b.0));
 
         for (key, item) in items {
-            
             if !item.is_expired() && cache.map.len() < capacity {
                 cache.map.insert(key, item);
             }
@@ -732,15 +700,12 @@ impl Cache {
     {
         let key_str = key.as_ref();
 
-        
         let interned_key = if key_str.len() < 50 {
-            
             self.string_pool.get_or_intern(key_str).to_string()
         } else {
             key.into()
         };
 
-        
         if self.string_pool.len() > 1000 {
             self.string_pool.clear_if_large();
         }
@@ -757,14 +722,12 @@ impl Cache {
             }
         }
 
-        
         if self.map.len() >= self.capacity && !self.map.contains_key(&interned_key) {
             if let Some((first_key, first_item)) = self.map.shift_remove_index(0) {
                 self.send_remove(first_key, first_item.value);
             }
         }
 
-        
         self.map.insert(interned_key.clone(), item.clone());
 
         self.send_insert(interned_key, item.value);
@@ -803,19 +766,16 @@ impl Cache {
             }
         }
 
-        
         if self.map.len() >= self.capacity && !self.map.contains_key(&key) {
             if let Some((first_key, first_item)) = self.map.shift_remove_index(0) {
                 self.send_remove(first_key, first_item.value);
             }
         }
 
-        
         self.map.insert(key.clone(), item.clone());
 
         self.send_insert(key.clone(), item.value.clone());
 
-        
         #[cfg(feature = "persist")]
         if let Some(persist_path) = &self.persist_path {
             if let Some(ttl_millis) = item.ttl_millis {
@@ -823,7 +783,7 @@ impl Cache {
                     persist_path,
                     &key,
                     &item.value,
-                    ttl_millis / 1000, 
+                    ttl_millis / 1000,
                 );
             }
         }
@@ -848,7 +808,6 @@ impl Cache {
     /// ```
     #[inline]
     pub fn get(&mut self, key: &str) -> Option<&Value> {
-        
         let pooled_key = if key.len() <= 50 {
             Some(self.string_pool.get_or_intern(key))
         } else {
@@ -857,13 +816,10 @@ impl Cache {
 
         let lookup_key = pooled_key.as_deref().unwrap_or(key);
 
-        
         if let Some((_, item)) = self.map.get_key_value(lookup_key) {
-            
             item.prefetch_read();
         }
 
-        
         let is_expired = match self.map.get(lookup_key) {
             Some(item) => {
                 if let Some(ttl) = item.ttl_millis {
@@ -876,13 +832,11 @@ impl Cache {
         };
 
         if is_expired {
-            
             if let Some(expired_item) = self.map.swap_remove(lookup_key) {
                 self.send_remove(lookup_key.to_string(), expired_item.value);
             }
             None
         } else {
-            
             self.map.get(lookup_key).map(|item| &item.value)
         }
     }
@@ -901,7 +855,6 @@ impl Cache {
     }
 
     pub fn get_mut(&mut self, key: &str) -> Option<&mut Value> {
-        
         let should_remove = self.map.get(key).map_or(false, |item| item.is_expired());
 
         if should_remove {
@@ -923,7 +876,6 @@ impl Cache {
     }
 
     pub fn remove(&mut self, key: &str) -> Result<(), Error> {
-        
         let pooled_key = if key.len() <= 50 {
             Some(self.string_pool.get_or_intern(key))
         } else {
@@ -932,7 +884,6 @@ impl Cache {
 
         let lookup_key = pooled_key.as_deref().unwrap_or(key);
 
-        
         if let Some(item) = self.map.swap_remove(lookup_key) {
             self.send_remove(lookup_key.to_string(), item.value);
             Ok(())
@@ -943,7 +894,7 @@ impl Cache {
 
     pub fn clear(&mut self) {
         self.map.clear();
-        self.string_pool.clear(); 
+        self.string_pool.clear();
         self.send_clear();
     }
 
@@ -1016,11 +967,9 @@ impl Cache {
     /// ```
     pub fn cleanup_expired(&mut self) -> usize {
         let current_time = current_time_millis();
-        let mut expired_keys = Vec::with_capacity(self.map.len() / 4); 
+        let mut expired_keys = Vec::with_capacity(self.map.len() / 4);
 
-        
         for (key, item) in &self.map {
-            
             item.prefetch_read();
 
             if let Some(ttl) = item.ttl_millis {
@@ -1032,12 +981,10 @@ impl Cache {
 
         let removed_count = expired_keys.len();
 
-        
         if !expired_keys.is_empty() {
             Prefetch::sequential_read_hints(expired_keys.as_ptr(), expired_keys.len());
         }
 
-        
         for key in expired_keys {
             if let Some(item) = self.map.swap_remove(&key) {
                 self.send_remove(key, item.value);
@@ -1091,14 +1038,11 @@ impl Cache {
     {
         let props = props.into();
 
-        
         self.cleanup_expired();
 
-        
         let mut keys: Vec<String> = self.map.keys().cloned().collect();
         keys.sort();
 
-        
         if !keys.is_empty() {
             Prefetch::sequential_read_hints(keys.as_ptr(), keys.len());
         }
@@ -1128,12 +1072,10 @@ impl Cache {
 
         for k in list_iter {
             if let Some(item) = self.map.get(k) {
-                
                 if item.is_expired() {
                     continue;
                 }
 
-                
                 let filtered = if apply_filter_fast(k, &props.filter) {
                     Some((k.clone(), &item.value))
                 } else {

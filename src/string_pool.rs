@@ -12,7 +12,7 @@ impl StringPool {
     #[inline]
     pub fn new() -> Self {
         Self {
-            pool: HashMap::with_capacity(512), 
+            pool: HashMap::with_capacity(512),
         }
     }
 

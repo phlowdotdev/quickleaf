@@ -20,7 +20,7 @@ use crate::Cache;
 ///
 /// let mut cache = Quickleaf::new(100);
 /// cache.insert("user_123", "session_data");
-/// 
+///
 /// assert_eq!(cache.get("user_123"), Some(&"session_data".to_value()));
 /// assert_eq!(cache.len(), 1);
 /// ```

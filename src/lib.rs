@@ -221,19 +221,14 @@
 //! use quickleaf::Cache;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     
 //!     let mut cache = Cache::with_persist("cache.db", 1000)?;
-//!     
 //!     
 //!     cache.insert("user:123", "Alice");
 //!     cache.insert("user:456", "Bob");
 //!     
-//!     
 //!     drop(cache);
 //!     
-//!     
 //!     let mut cache = Cache::with_persist("cache.db", 1000)?;
-//!     
 //!     
 //!     println!("{:?}", cache.get("user:123"));
 //!     
@@ -259,9 +254,6 @@
 //!         Duration::from_secs(3600)
 //!     );
 //!     
-//!     
-//!     
-//!     
 //!     Ok(())
 //! }
 //! # }
@@ -278,11 +270,9 @@
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let (tx, rx) = channel();
 //!     
-//!     
 //!     let mut cache = Cache::with_persist_and_sender("cache.db", 1000, tx)?;
 //!     
 //!     cache.insert("key1", "value1");
-//!     
 //!     
 //!     for event in rx.try_iter() {
 //!         println!("Event: {:?}", event);
@@ -305,7 +295,6 @@
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let (tx, rx) = channel();
 //!     
-//!     
 //!     let mut cache = Cache::with_persist_and_sender_and_ttl(
 //!         "full_featured_cache.db",
 //!         1000,
@@ -313,12 +302,9 @@
 //!         Duration::from_secs(3600)  
 //!     )?;
 //!     
-//!     
 //!     cache.insert("session", "user_data");
 //!     
-//!     
 //!     cache.insert_with_ttl("temp", "data", Duration::from_secs(60));
-//!     
 //!     
 //!     for event in rx.try_iter() {
 //!         println!("Event: {:?}", event);
