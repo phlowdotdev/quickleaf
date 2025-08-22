@@ -327,8 +327,8 @@
 mod cache;
 mod error;
 mod event;
-mod fast_filters;
 mod filter;
+pub mod filters;
 mod list_props;
 #[cfg(test)]
 #[cfg(feature = "persist")]
@@ -338,7 +338,6 @@ pub mod prelude;
 mod quickleaf;
 #[cfg(feature = "persist")]
 mod sqlite_store;
-mod string_pool;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

@@ -1,9 +1,8 @@
 use crate::error::Error;
 use crate::event::Event;
-use crate::fast_filters::apply_filter_fast;
+use crate::filters::apply_filter_fast;
 use crate::list_props::{ListProps, Order, StartAfter};
 use crate::prefetch::{Prefetch, PrefetchExt};
-use crate::string_pool::StringPool;
 use indexmap::IndexMap;
 use std::fmt::Debug;
 use std::sync::mpsc::Sender;
@@ -222,7 +221,6 @@ pub struct Cache {
     capacity: usize,
     default_ttl: Option<Duration>,
     sender: Option<Sender<Event>>,
-    string_pool: StringPool,
     #[cfg(feature = "persist")]
     persist_path: Option<std::path::PathBuf>,
     _phantom: std::marker::PhantomData<Value>,
@@ -254,7 +252,6 @@ impl Cache {
             capacity,
             default_ttl: None,
             sender: None,
-            string_pool: StringPool::new(),
             #[cfg(feature = "persist")]
             persist_path: None,
             _phantom: std::marker::PhantomData,
@@ -285,7 +282,6 @@ impl Cache {
             capacity,
             default_ttl: None,
             sender: Some(sender),
-            string_pool: StringPool::new(),
             #[cfg(feature = "persist")]
             persist_path: None,
             _phantom: std::marker::PhantomData,
@@ -312,7 +308,6 @@ impl Cache {
             capacity,
             default_ttl: Some(default_ttl),
             sender: None,
-            string_pool: StringPool::new(),
             #[cfg(feature = "persist")]
             persist_path: None,
             _phantom: std::marker::PhantomData,
@@ -347,7 +342,6 @@ impl Cache {
             capacity,
             default_ttl: Some(default_ttl),
             sender: Some(sender),
-            string_pool: StringPool::new(),
             #[cfg(feature = "persist")]
             persist_path: None,
             _phantom: std::marker::PhantomData,
@@ -693,20 +687,10 @@ impl Cache {
     /// ```
     pub fn insert<T, V>(&mut self, key: T, value: V)
     where
-        T: Into<String> + Clone + AsRef<str>,
+        T: Into<String>,
         V: ToValueBehavior,
     {
-        let key_str = key.as_ref();
-
-        let interned_key = if key_str.len() < 50 {
-            self.string_pool.get_or_intern(key_str).to_string()
-        } else {
-            key.into()
-        };
-
-        if self.string_pool.len() > 1000 {
-            self.string_pool.clear_if_large();
-        }
+        let key = key.into();
 
         let item = if let Some(default_ttl) = self.default_ttl {
             CacheItem::with_ttl(value.to_value(), default_ttl)
@@ -714,21 +698,21 @@ impl Cache {
             CacheItem::new(value.to_value())
         };
 
-        if let Some(existing_item) = self.map.get(&interned_key) {
+        if let Some(existing_item) = self.map.get(&key) {
             if existing_item.value == item.value {
                 return;
             }
         }
 
-        if self.map.len() >= self.capacity && !self.map.contains_key(&interned_key) {
+        if self.map.len() >= self.capacity && !self.map.contains_key(&key) {
             if let Some((first_key, first_item)) = self.map.shift_remove_index(0) {
                 self.send_remove(first_key, first_item.value);
             }
         }
 
-        self.map.insert(interned_key.clone(), item.clone());
+        self.map.insert(key.clone(), item.clone());
 
-        self.send_insert(interned_key, item.value);
+        self.send_insert(key, item.value);
     }
 
     /// Inserts a key-value pair with a specific TTL.
@@ -806,19 +790,11 @@ impl Cache {
     /// ```
     #[inline]
     pub fn get(&mut self, key: &str) -> Option<&Value> {
-        let pooled_key = if key.len() <= 50 {
-            Some(self.string_pool.get_or_intern(key))
-        } else {
-            None
-        };
-
-        let lookup_key = pooled_key.as_deref().unwrap_or(key);
-
-        if let Some((_, item)) = self.map.get_key_value(lookup_key) {
+        if let Some((_, item)) = self.map.get_key_value(key) {
             item.prefetch_read();
         }
 
-        let is_expired = match self.map.get(lookup_key) {
+        let is_expired = match self.map.get(key) {
             Some(item) => {
                 if let Some(ttl) = item.ttl_millis {
                     (current_time_millis() - item.created_at) > ttl
@@ -830,12 +806,12 @@ impl Cache {
         };
 
         if is_expired {
-            if let Some(expired_item) = self.map.swap_remove(lookup_key) {
-                self.send_remove(lookup_key.to_string(), expired_item.value);
+            if let Some(expired_item) = self.map.swap_remove(key) {
+                self.send_remove(key.to_string(), expired_item.value);
             }
             None
         } else {
-            self.map.get(lookup_key).map(|item| &item.value)
+            self.map.get(key).map(|item| &item.value)
         }
     }
 
@@ -874,16 +850,8 @@ impl Cache {
     }
 
     pub fn remove(&mut self, key: &str) -> Result<(), Error> {
-        let pooled_key = if key.len() <= 50 {
-            Some(self.string_pool.get_or_intern(key))
-        } else {
-            None
-        };
-
-        let lookup_key = pooled_key.as_deref().unwrap_or(key);
-
-        if let Some(item) = self.map.swap_remove(lookup_key) {
-            self.send_remove(lookup_key.to_string(), item.value);
+        if let Some(item) = self.map.swap_remove(key) {
+            self.send_remove(key.to_string(), item.value);
             Ok(())
         } else {
             Err(Error::KeyNotFound)
@@ -892,7 +860,6 @@ impl Cache {
 
     pub fn clear(&mut self) {
         self.map.clear();
-        self.string_pool.clear();
         self.send_clear();
     }
 
