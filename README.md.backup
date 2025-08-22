@@ -496,6 +496,7 @@ These optimizations are **transparent** to the API - all existing code continues
 
 ### Core Optimization Technologies
 
+#### 🧠 **String Pooling System**
 - **Smart Memory Management**: Automatically pools and reuses small strings (< 64 bytes by default)
 - **Fragmentation Reduction**: Minimizes heap fragmentation through strategic allocation reuse
 - **Configurable Thresholds**: Adjustable pool size and string length limits
@@ -505,13 +506,17 @@ These optimizations are **transparent** to the API - all existing code continues
 ## 🔧 API Reference
 ```
 
+#### ⚡ **SIMD Acceleration**
+- **Vectorized Pattern Matching**: Uses CPU SIMD instructions (SSE2, AVX) for string operations
 - **Automatic Detection**: Runtime detection of CPU capabilities with safe fallbacks
 - **Optimized Algorithms**: Custom prefix/suffix matching algorithms for large text processing
 - **Cross-Platform**: Works on x86/x86_64 with graceful degradation on ARM/other architectures
 
 ```rust
+// SIMD acceleration is automatic in filter operations
 let results = cache.list(
     ListProps::default()
+        .filter(Filter::StartWith("user:".to_string()))  // Uses SIMD if available
 );
 ```
 
