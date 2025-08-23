@@ -249,6 +249,30 @@ impl ListProps {
         self.order = order;
         self
     }
+
+    /// Sets the maximum number of results to return.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use quickleaf::ListProps;
+    /// use quickleaf::Cache;
+    /// use quickleaf::valu3::traits::ToValueBehavior;
+    ///
+    /// let mut cache = Cache::new(20);
+    /// for i in 0..15 {
+    ///     cache.insert(format!("key_{:02}", i), i);
+    /// }
+    ///
+    /// // Limit results to 5 items
+    /// let props = ListProps::default().limit(5);
+    /// let results = cache.list(props).unwrap();
+    /// assert_eq!(results.len(), 5);
+    /// ```
+    pub fn limit(mut self, limit: usize) -> Self {
+        self.limit = limit;
+        self
+    }
 }
 
 impl From<Filter> for ListProps {

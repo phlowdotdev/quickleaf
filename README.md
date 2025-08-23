@@ -209,40 +209,262 @@ fn main() {
 
 ### 📋 Pagination and Ordering
 
+Quickleaf provides powerful pagination capabilities through `limit` and `start_after_key` parameters, enabling efficient navigation through large datasets.
+
+#### Basic Pagination with `limit`
+
+The `limit` parameter controls how many items are returned in a single query:
+
 ```rust
 use quickleaf::{Quickleaf, ListProps, Order};
 
 fn main() {
     let mut cache = Quickleaf::new(100);
     
-    // Add some test data
-    for i in 1..=20 {
-        cache.insert(format!("item_{:02}", i), i);
+    // Add test data
+    for i in 0..50 {
+        cache.insert(format!("item_{:03}", i), format!("value_{}", i));
     }
     
-    // Get first 5 items in ascending order
-    let page1 = cache.list(
+    // Get only the first 10 items
+    let page = cache.list(
         ListProps::default()
             .order(Order::Asc)
+            .limit(10)  // Return maximum 10 items
     ).unwrap();
     
-    println!("First 5 items:");
-    for (i, (key, value)) in page1.iter().take(5).enumerate() {
-        println!("  {}: {} = {}", i+1, key, value);
-    }
-    
-    // Get top 3 items in descending order
-    let desc_items = cache.list(
-        ListProps::default()
-            .order(Order::Desc)
-    ).unwrap();
-    
-    println!("Top 3 items (desc):");
-    for (key, value) in desc_items.iter().take(3) {
-        println!("  {}: {}", key, value);
+    println!("First page ({} items):", page.len());
+    for (key, value) in &page {
+        println!("  {} = {}", key, value);
     }
 }
 ```
+
+#### Cursor-Based Pagination with `start_after_key`
+
+Use `start_after_key` to implement efficient cursor-based pagination:
+
+```rust
+use quickleaf::{Quickleaf, ListProps, Order};
+
+fn main() {
+    let mut cache = Quickleaf::new(100);
+    
+    // Add 30 items
+    for i in 0..30 {
+        cache.insert(format!("key_{:02}", i), i);
+    }
+    
+    // Get first page
+    let page1 = cache.list(
+        ListProps::default()
+            .order(Order::Asc)
+            .limit(10)
+    ).unwrap();
+    
+    println!("Page 1: {} items", page1.len());
+    let last_key = &page1.last().unwrap().0;
+    println!("Last key in page 1: {}", last_key);
+    
+    // Get second page using the last key from page 1
+    let page2 = cache.list(
+        ListProps::default()
+            .order(Order::Asc)
+            .start_after_key(last_key)  // Continue after the last key
+            .limit(10)
+    ).unwrap();
+    
+    println!("Page 2: {} items starting after '{}'", page2.len(), last_key);
+    for (key, value) in page2.iter().take(3) {
+        println!("  {} = {}", key, value);
+    }
+}
+```
+
+#### Complete Pagination Example
+
+Here's a comprehensive example showing how to paginate through all items:
+
+```rust
+use quickleaf::{Quickleaf, ListProps, Order};
+
+fn main() {
+    let mut cache = Quickleaf::new(200);
+    
+    // Insert 100 items
+    for i in 0..100 {
+        cache.insert(format!("doc_{:03}", i), format!("content_{}", i));
+    }
+    
+    // Paginate through all items
+    let mut all_items = Vec::new();
+    let mut current_key: Option<String> = None;
+    let page_size = 25;
+    let mut page_num = 1;
+    
+    loop {
+        // Build pagination properties
+        let mut props = ListProps::default()
+            .order(Order::Asc)
+            .limit(page_size);
+        
+        // Add start_after_key if we have a cursor
+        if let Some(ref key) = current_key {
+            props = props.start_after_key(key);
+        }
+        
+        // Get the page
+        let page = cache.list(props).unwrap();
+        
+        // Break if no more items
+        if page.is_empty() {
+            break;
+        }
+        
+        println!("Page {}: {} items", page_num, page.len());
+        
+        // Collect items and update cursor
+        for (key, value) in &page {
+            all_items.push((key.clone(), value.clone()));
+        }
+        current_key = Some(page.last().unwrap().0.clone());
+        page_num += 1;
+    }
+    
+    println!("Total pages: {}", page_num - 1);
+    println!("Total items: {}", all_items.len());
+}
+```
+
+#### Pagination with Filtering
+
+Combine pagination with filtering for more complex queries:
+
+```rust
+use quickleaf::{Quickleaf, ListProps, Order, Filter};
+
+fn main() {
+    let mut cache = Quickleaf::new(100);
+    
+    // Add mixed data
+    for i in 0..30 {
+        cache.insert(format!("user_{:02}", i), format!("User {}", i));
+        cache.insert(format!("admin_{:02}", i), format!("Admin {}", i));
+    }
+    
+    // Paginate through users only
+    let mut user_cursor: Option<String> = None;
+    let mut page = 1;
+    
+    loop {
+        let mut props = ListProps::default()
+            .filter(Filter::StartWith("user_".to_string()))
+            .order(Order::Asc)
+            .limit(5);
+        
+        if let Some(ref cursor) = user_cursor {
+            props = props.start_after_key(cursor);
+        }
+        
+        let users = cache.list(props).unwrap();
+        
+        if users.is_empty() {
+            break;
+        }
+        
+        println!("User page {}: {} users", page, users.len());
+        for (key, value) in &users {
+            println!("  {} = {}", key, value);
+        }
+        
+        user_cursor = Some(users.last().unwrap().0.clone());
+        page += 1;
+    }
+}
+```
+
+#### Descending Order Pagination
+
+`start_after_key` works correctly with descending order:
+
+```rust
+use quickleaf::{Quickleaf, ListProps, Order};
+
+fn main() {
+    let mut cache = Quickleaf::new(50);
+    
+    // Add items
+    for i in 0..20 {
+        cache.insert(format!("item_{:02}", i), i);
+    }
+    
+    // Get first page in descending order
+    let page1 = cache.list(
+        ListProps::default()
+            .order(Order::Desc)
+            .limit(5)
+    ).unwrap();
+    
+    println!("Descending page 1:");
+    for (key, _) in &page1 {
+        println!("  {}", key);
+    }
+    
+    // Get next page (continuing in descending order)
+    let last_key = &page1.last().unwrap().0;
+    let page2 = cache.list(
+        ListProps::default()
+            .order(Order::Desc)
+            .start_after_key(last_key)
+            .limit(5)
+    ).unwrap();
+    
+    println!("\nDescending page 2 (after '{}'):", last_key);
+    for (key, _) in &page2 {
+        println!("  {}", key);
+    }
+}
+```
+
+#### Edge Cases and Best Practices
+
+```rust
+use quickleaf::{Quickleaf, ListProps};
+
+fn main() {
+    let mut cache = Quickleaf::new(10);
+    cache.insert("a", 1);
+    cache.insert("b", 2);
+    cache.insert("c", 3);
+    
+    // Edge case: limit of 0 returns empty list
+    let empty = cache.list(ListProps::default().limit(0)).unwrap();
+    assert_eq!(empty.len(), 0);
+    
+    // Edge case: limit greater than total items returns all
+    let all = cache.list(ListProps::default().limit(100)).unwrap();
+    assert_eq!(all.len(), 3);
+    
+    // Edge case: start_after_key with non-existent key returns error
+    let result = cache.list(
+        ListProps::default().start_after_key("non_existent")
+    );
+    assert!(result.is_err());
+    
+    // Best practice: Always check if page is empty to detect end
+    let last_page = cache.list(
+        ListProps::default().start_after_key("c")
+    ).unwrap();
+    assert!(last_page.is_empty()); // No items after "c"
+}
+```
+
+#### Performance Tips
+
+- **Use appropriate page sizes**: Balance between memory usage and number of queries (typically 10-100 items)
+- **Cache cursors**: Store the last key for efficient pagination state management
+- **Combine with filters**: Apply filters to reduce the dataset before pagination
+- **Handle errors gracefully**: Check for non-existent keys when using `start_after_key`
 
 ### 💾 Persistent Cache (SQLite Backend)
 

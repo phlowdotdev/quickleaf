@@ -34,6 +34,7 @@ enum MenuItem {
     Get,
     Remove,
     List,
+    ListPaginated,
     Filter,
     Clear,
     CleanupExpired,
@@ -50,6 +51,7 @@ impl MenuItem {
             MenuItem::Get,
             MenuItem::Remove,
             MenuItem::List,
+            MenuItem::ListPaginated,
             MenuItem::Filter,
             MenuItem::Clear,
             MenuItem::CleanupExpired,
@@ -65,6 +67,7 @@ impl MenuItem {
             MenuItem::Get => "🔍 Get Value",
             MenuItem::Remove => "🗑️  Remove Key",
             MenuItem::List => "📋 List All Items",
+            MenuItem::ListPaginated => "📄 List (Paginated)",
             MenuItem::Filter => "🔎 Filter Items",
             MenuItem::Clear => "🧹 Clear Cache",
             MenuItem::CleanupExpired => "♻️  Cleanup Expired",
@@ -80,6 +83,7 @@ impl MenuItem {
             MenuItem::Get => "Retrieve a value by its key",
             MenuItem::Remove => "Remove a key-value pair from the cache",
             MenuItem::List => "List all items in the cache",
+            MenuItem::ListPaginated => "List items with pagination (limit and start_after_key)",
             MenuItem::Filter => "Filter items by prefix, suffix, or pattern",
             MenuItem::Clear => "Clear all items from the cache",
             MenuItem::CleanupExpired => "Remove all expired items from the cache",
@@ -222,6 +226,54 @@ impl App {
                 }
                 self.reset_input();
             }
+            Some(MenuItem::ListPaginated) => match self.input_stage {
+                0 => {
+                    self.input_stage = 1;
+                    self.add_message("Enter start_after_key (or press Enter to skip):".to_string());
+                }
+                1 => {
+                    let limit = self.input_buffer.parse::<usize>().unwrap_or(10);
+                    let start_after = if self.second_input_buffer.is_empty() {
+                        None
+                    } else {
+                        Some(self.second_input_buffer.clone())
+                    };
+                    
+                    let mut props = ListProps::default()
+                        .order(Order::Asc)
+                        .limit(limit);
+                    
+                    if let Some(key) = start_after {
+                        props = props.start_after_key(&key);
+                    }
+                    
+                    match self.cache.list(props) {
+                        Ok(items) => {
+                            let items: Vec<_> = items.into_iter()
+                                .map(|(k, v)| (k, v.clone()))
+                                .collect();
+                            
+                            if items.is_empty() {
+                                self.add_message("📄 No items found with given pagination".to_string());
+                            } else {
+                                self.add_message(format!("📄 Showing {} items (limit: {}):", items.len(), limit));
+                                for (key, value) in &items {
+                                    self.add_message(format!("  • {} = {:?}", key, value));
+                                }
+                                if !items.is_empty() {
+                                    let last_key = &items.last().unwrap().0;
+                                    self.add_message(format!("💡 To continue, use start_after_key: '{}'", last_key));
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            self.add_message(format!("❌ Error: {:?}", e));
+                        }
+                    }
+                    self.reset_input();
+                }
+                _ => {}
+            },
             Some(MenuItem::Filter) => {
                 let prefix = self.input_buffer.clone();
                 let items = self
@@ -298,6 +350,8 @@ impl App {
             (Some(MenuItem::Get), _) => "Enter key to get: ".to_string(),
             (Some(MenuItem::Remove), _) => "Enter key to remove: ".to_string(),
             (Some(MenuItem::Filter), _) => "Enter prefix to filter: ".to_string(),
+            (Some(MenuItem::ListPaginated), 0) => "Enter limit (default 10): ".to_string(),
+            (Some(MenuItem::ListPaginated), 1) => "Enter start_after_key (press Enter to skip): ".to_string(),
             _ => "Input: ".to_string(),
         }
     }

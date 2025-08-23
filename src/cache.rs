@@ -1018,6 +1018,12 @@ impl Cache {
         }
 
         let mut list = Vec::new();
+        
+        // Early return if limit is 0
+        if props.limit == 0 {
+            return Ok(list);
+        }
+
         let mut count = 0;
 
         for k in list_iter {
@@ -1035,7 +1041,7 @@ impl Cache {
                 if let Some(item) = filtered {
                     list.push(item);
                     count += 1;
-                    if count == props.limit {
+                    if count >= props.limit {
                         break;
                     }
                 }
