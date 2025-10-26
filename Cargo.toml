@@ -12,7 +12,7 @@ repository = "https://github.com/phlowdotdev/quickleaf"
 readme = "README.md"
 
 [dependencies]
-valu3 = "0.9.1"
+valu3 = "0.9.2"
 hashbrown = "0.16.0"
 indexmap = "2.12.0"
 
